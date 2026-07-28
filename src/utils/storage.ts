@@ -52,16 +52,24 @@ export function loadAppState(): AppStorageState {
     activeLicense = buildLicenseData(state.license.key, deviceId, newWatermark);
   }
 
-  const hasOldCollections = state.collections?.some(col => col.id.includes('math') || col.id.includes('chi-02') || col.name.includes('乐园'));
-  let collections = (state.collections && state.collections.length > 0 && !hasOldCollections)
-    ? state.collections.map((col) => {
+  let collections: KnowledgeCollection[];
+  if (Array.isArray(state.collections)) {
+    const hasOldCollections = state.collections.some(col => col.id.includes('math') || col.id.includes('chi-02') || col.name.includes('乐园'));
+    if (hasOldCollections) {
+      const cleaned = state.collections.filter(col => !(col.id.includes('math') || col.id.includes('chi-02') || col.name.includes('乐园')));
+      collections = cleaned.length > 0 ? cleaned : SAMPLE_COLLECTIONS;
+    } else {
+      collections = state.collections.map((col) => {
         const sample = SAMPLE_COLLECTIONS.find((s) => s.id === col.id);
         if (sample) {
           return { ...col, tags: sample.tags, categories: sample.categories };
         }
         return col;
-      })
-    : SAMPLE_COLLECTIONS;
+      });
+    }
+  } else {
+    collections = SAMPLE_COLLECTIONS;
+  }
 
   const fullState: AppStorageState = {
     deviceId,
@@ -75,7 +83,6 @@ export function loadAppState(): AppStorageState {
     currentStreak: state.currentStreak || 0,
   };
 
-  saveAppState(fullState);
   return fullState;
 }
 
@@ -84,13 +91,26 @@ export function loadAppState(): AppStorageState {
  */
 export async function loadAppStateAsync(): Promise<AppStorageState> {
   const idbState = await loadStateFromIndexedDB();
-  if (idbState && idbState.collections && idbState.collections.length > 0) {
+  if (idbState && Array.isArray(idbState.collections)) {
     const hasOldCollections = idbState.collections.some(col => col.id.includes('math') || col.id.includes('chi-02') || col.name.includes('乐园'));
     if (hasOldCollections) {
-      idbState.collections = SAMPLE_COLLECTIONS;
+      const cleaned = idbState.collections.filter(col => !(col.id.includes('math') || col.id.includes('chi-02') || col.name.includes('乐园')));
+      idbState.collections = cleaned.length > 0 ? cleaned : SAMPLE_COLLECTIONS;
     }
-    // Save to localStorage as synced cache
-    saveAppState(idbState);
+    idbState.collections = idbState.collections.map((col) => {
+      const sample = SAMPLE_COLLECTIONS.find((s) => s.id === col.id);
+      if (sample) {
+        return { ...col, tags: sample.tags, categories: sample.categories };
+      }
+      return col;
+    });
+
+    // Save to localStorage as synced cache (ignoring quota errors)
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(idbState));
+    } catch (e) {
+      console.warn('LocalStorage quota limit reached during IDB sync:', e);
+    }
     return idbState;
   }
 
@@ -101,23 +121,23 @@ export async function loadAppStateAsync(): Promise<AppStorageState> {
 }
 
 /**
- * Save state to both localStorage (sync cache) and IndexedDB (high capacity browser DB)
+ * Save state to both IndexedDB (primary high-capacity storage) and localStorage (sync cache)
  */
 export function saveAppState(state: AppStorageState): void {
   const nowMs = Date.now();
   state.clockWatermark = Math.max(state.clockWatermark || 0, nowMs);
 
-  // 1. Save to localStorage (fast cache / legacy compatibility)
+  // 1. Persist to IndexedDB (Browser Local DB)
+  saveStateToIndexedDB(state).catch((err) => {
+    console.warn('IndexedDB async save failed:', err);
+  });
+
+  // 2. Save to localStorage (fast cache / legacy compatibility)
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch (e) {
     console.warn('LocalStorage quota limit reached, relying on IndexedDB:', e);
   }
-
-  // 2. Persist to IndexedDB (Browser Local DB)
-  saveStateToIndexedDB(state).catch((err) => {
-    console.warn('IndexedDB async save failed:', err);
-  });
 }
 
 /**
