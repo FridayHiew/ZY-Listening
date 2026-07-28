@@ -1,0 +1,102 @@
+/* index.css - 修改背景色 */
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+html.font-scale-small {
+  font-size: 14px;
+}
+html.font-scale-medium {
+  font-size: 16px;
+}
+html.font-scale-large {
+  font-size: 18px;
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    /* ===== 修改: 淺色背景改為柔和暖白 ===== */
+    background-color: #FFF8F0;
+    color: #2D2A26;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+
+  .dark body {
+    /* ===== 修改: 深色背景改為柔和深灰 ===== */
+    background-color: #2A2A2A;
+    color: #EAE7DF;
+  }
+
+  h1, h2, h3 {
+    font-family: 'Lora', Georgia, serif;
+  }
+}
+
+
+/* Safe Area Inset Helpers for iOS Dynamic Island / Notch / Home Indicator */
+.pb-safe {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom, 1rem));
+}
+.pt-safe {
+  padding-top: max(0.75rem, env(safe-area-inset-top, 0.75rem));
+}
+.mb-safe {
+  margin-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Scrollbar Hiding Utility for Mobile Swipe Nav */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Natural Tones custom utility accents */
+.bg-sand-50 {
+  background-color: #FDFCF8;
+}
+.bg-sand-100 {
+  background-color: #F5F2EA;
+}
+.bg-sand-200 {
+  background-color: #EAE5D8;
+}
+.border-sand-200 {
+  border-color: #E8E2D2;
+}
+
+.text-heading-stone {
+  color: #3E4A3E;
+}
+.dark .text-heading-stone {
+  color: #F5F2EA;
+}
+
+.bg-sage-600 {
+  background-color: #5A6D5B;
+}
+.hover\:bg-sage-700:hover {
+  background-color: #485749;
+}
+.text-sage-700 {
+  color: #5A6D5B;
+}
+
+.dark .bg-sage-600 {
+  background-color: #708571;
+}
+.dark .hover\:bg-sage-700:hover {
+  background-color: #839B84;
+}
+.dark .text-sage-700 {
+  color: #A3B5A4;
+}

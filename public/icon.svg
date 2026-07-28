@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <!-- Rounded Square Container -->
+  <rect width="512" height="512" rx="128" fill="#121212"/>
+
+  <!-- Outer Octagon Frame -->
+  <polygon points="179,25 332,25 486,179 486,332 332,486 179,486 25,332 25,179" fill="#1A1D1A" stroke="#C5A059" stroke-width="9"/>
+
+  <!-- Bagua Trigrams (8 Directions) -->
+  <!-- Qian ☰ Top -->
+  <g stroke="#D4AF37" stroke-width="8" stroke-linecap="round">
+    <line x1="225" y1="55" x2="286" y2="55" />
+    <line x1="225" y1="68" x2="286" y2="68" />
+    <line x1="225" y1="81" x2="286" y2="81" />
+  </g>
+
+  <!-- Kun ☷ Bottom -->
+  <g stroke="#D4AF37" stroke-width="8" stroke-linecap="round">
+    <line x1="225" y1="431" x2="251" y2="431" /><line x1="261" y1="431" x2="286" y2="431" />
+    <line x1="225" y1="444" x2="251" y2="444" /><line x1="261" y1="444" x2="286" y2="444" />
+    <line x1="225" y1="457" x2="251" y2="457" /><line x1="261" y1="457" x2="286" y2="457" />
+  </g>
+
+  <!-- Li ☲ Left -->
+  <g stroke="#D4AF37" stroke-width="8" stroke-linecap="round">
+    <line x1="55" y1="225" x2="55" y2="286" />
+    <line x1="68" y1="225" x2="68" y2="251" /><line x1="68" y1="261" x2="68" y2="286" />
+    <line x1="81" y1="225" x2="81" y2="286" />
+  </g>
+
+  <!-- Kan ☵ Right -->
+  <g stroke="#D4AF37" stroke-width="8" stroke-linecap="round">
+    <line x1="431" y1="225" x2="431" y2="251" /><line x1="431" y1="261" x2="431" y2="286" />
+    <line x1="444" y1="225" x2="444" y2="286" />
+    <line x1="457" y1="225" x2="457" y2="251" /><line x1="457" y1="261" x2="457" y2="286" />
+  </g>
+
+  <!-- Central Inner Shield -->
+  <circle cx="256" cy="256" r="130" fill="#242824" stroke="#C5A059" stroke-width="6"/>
+
+  <!-- Yin-Yang Ambient Wave -->
+  <path d="M256 126 A 65 65 0 0 1 256 256 A 65 65 0 0 0 256 386 A 130 130 0 0 1 256 126 Z" fill="#181A18" opacity="0.8"/>
+
+  <!-- Book Icon in Center -->
+  <g transform="translate(0, 10)">
+    <!-- Left Page -->
+    <path d="M256 295 C230 272 184 272 153 287 L153 215 C184 200 230 200 256 223 Z" fill="#5A6D5B"/>
+    <!-- Right Page -->
+    <path d="M256 295 C282 272 328 272 359 287 L359 215 C328 200 282 200 256 223 Z" fill="#708571"/>
+    <!-- Spine -->
+    <line x1="256" y1="223" x2="256" y2="295" stroke="#C5A059" stroke-width="5" stroke-linecap="round"/>
+    <!-- Star Spark -->
+    <path d="M256 175 L261 188 L274 193 L261 198 L256 211 L251 198 L238 193 L251 188 Z" fill="#D4AF37"/>
+  </g>
+</svg>

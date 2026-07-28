@@ -1,0 +1,6 @@
+{
+  "name": "卓越听词 ZY-VocabHear",
+  "description": "化繁为易，耳听万词 — Learn vocabulary, master pronunciation. Offline interactive listening training, quiz system & PWA portal.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
