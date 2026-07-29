@@ -1,5 +1,27 @@
 import JSZip from 'jszip';
-import { Question, ValidationReport } from '../types';
+import { LanguageCode, Question, ValidationReport } from '../types';
+
+export function detectCollectionLanguage(
+  rawLanguage?: string,
+  group?: string,
+  name?: string,
+  questions: Question[] = []
+): LanguageCode {
+  if (rawLanguage === 'en' || rawLanguage === 'zh' || rawLanguage === 'ms') {
+    return rawLanguage as LanguageCode;
+  }
+  const combinedStr = `${name || ''} ${group || ''}`.toLowerCase();
+
+  if (/[\u4e00-\u9fa5]/.test(combinedStr)) return 'zh';
+  if (combinedStr.includes('chinese') || combinedStr.includes('华文') || combinedStr.includes('华小')) return 'zh';
+  if (combinedStr.includes('malay') || combinedStr.includes('melayu') || combinedStr.includes('sekolah') || combinedStr.includes('bm')) return 'ms';
+  if (combinedStr.includes('english') || combinedStr.includes('inggeris')) return 'en';
+
+  for (const q of questions) {
+    if (/[\u4e00-\u9fa5]/.test(q.questionText || '')) return 'zh';
+  }
+  return 'en';
+}
 
 /**
  * Helper to parse CSV lines handling quoted values with commas
@@ -216,7 +238,10 @@ export async function parseJSONImport(fileText: string): Promise<ValidationRepor
   const collectionDescription = parsed.description || '';
   const collectionDifficulty = parsed.difficulty || 'Master';
   const collectionGroup = parsed.group || parsed.groupName || 'General';
+  const collectionLanguage = parsed.language || parsed.collectionLanguage || undefined;
   const collectionTags = Array.isArray(parsed.tags) ? parsed.tags.map((t: any) => t.toString().trim()) : [];
+  const enablePronunciation = parsed.enablePronunciation === true || parsed.enablePronunciation === 'true';
+  const pronunciationLanguage = parsed.pronunciationLanguage || '';
   let rawQuestions: any[] = [];
 
   if (Array.isArray(parsed)) {
@@ -237,6 +262,8 @@ export async function parseJSONImport(fileText: string): Promise<ValidationRepor
       collectionDifficulty,
       collectionGroup,
       collectionTags,
+      enablePronunciation,
+      pronunciationLanguage,
     };
   }
 
@@ -245,7 +272,10 @@ export async function parseJSONImport(fileText: string): Promise<ValidationRepor
   report.collectionDescription = collectionDescription;
   report.collectionDifficulty = collectionDifficulty;
   report.collectionGroup = collectionGroup;
+  report.collectionLanguage = detectCollectionLanguage(collectionLanguage, collectionGroup, collectionName, report.extractedQuestions);
   report.collectionTags = collectionTags;
+  report.enablePronunciation = enablePronunciation;
+  report.pronunciationLanguage = pronunciationLanguage;
   return report;
 }
 
@@ -267,10 +297,29 @@ export async function parseCSVImport(fileText: string, filename: string): Promis
     };
   }
 
+  let metadata: any = {};
+  let contentStartIndex = 0;
+
+  // Check if first few rows contain metadata
+  for (let i = 0; i < parsedLines.length; i++) {
+    const row = parsedLines[i];
+    if (row.length === 0 || (row.length === 1 && !row[0].trim())) {
+      continue;
+    }
+
+    const firstCell = (row[0] || '').toLowerCase().trim();
+    if (['collectionname', 'description', 'group', 'difficulty', 'enablepronunciation', 'pronunciationlanguage', 'tags'].includes(firstCell)) {
+      metadata[firstCell] = row[1] || '';
+    } else {
+      contentStartIndex = i;
+      break;
+    }
+  }
+
   // Determine if first row is headers
-  const firstRow = parsedLines[0];
+  const firstRow = parsedLines[contentStartIndex];
   const commonHeaders = ['question', 'text', 'word', 'vocab', 'option', 'correct', 'answer', 'id', 'category'];
-  const hasHeaders = firstRow.some(cell => 
+  const hasHeaders = firstRow && firstRow.some(cell => 
     commonHeaders.some(ch => cell.toLowerCase().includes(ch))
   );
 
@@ -279,11 +328,11 @@ export async function parseCSVImport(fileText: string, filename: string): Promis
 
   if (hasHeaders) {
     headers = firstRow.map(h => h.trim().toLowerCase().replace(/^["']|["']$/g, ''));
-    dataRows = parsedLines.slice(1);
+    dataRows = parsedLines.slice(contentStartIndex + 1);
   } else {
     // Standard sequence mapping
     headers = ['id', 'category', 'questiontext', 'optiona', 'optionb', 'optionc', 'optiond', 'correctanswer', 'explanation', 'sourcereference', 'imagefile'];
-    dataRows = parsedLines;
+    dataRows = parsedLines.slice(contentStartIndex);
   }
 
   const rawQuestions: any[] = dataRows.map((row, idx) => {
@@ -334,14 +383,28 @@ export async function parseCSVImport(fileText: string, filename: string): Promis
   });
 
   const cleanName = filename.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ').trim();
-  const collectionName = cleanName ? cleanName.charAt(0).toUpperCase() + cleanName.slice(1) : 'CSV Imported Collection';
+  const defaultCollectionName = cleanName ? cleanName.charAt(0).toUpperCase() + cleanName.slice(1) : 'CSV Imported Collection';
+  const collectionName = metadata['collectionname'] || defaultCollectionName;
 
   const report = validateAndFormatQuestions(rawQuestions);
   report.collectionName = collectionName;
-  report.collectionDescription = `Imported from CSV file ${filename}.`;
-  report.collectionDifficulty = 'Primary';
-  report.collectionGroup = 'General';
-  report.collectionTags = ['csv', 'imported'];
+  report.collectionDescription = metadata['description'] || `Imported from CSV file ${filename}.`;
+  report.collectionDifficulty = metadata['difficulty'] || 'Primary';
+  report.collectionGroup = metadata['group'] || 'General';
+  report.collectionLanguage = detectCollectionLanguage(undefined, report.collectionGroup, collectionName, report.extractedQuestions);
+  
+  if (metadata['tags']) {
+    report.collectionTags = metadata['tags'].split(',').map((t: string) => t.trim()).filter(Boolean);
+  } else {
+    report.collectionTags = ['csv', 'imported'];
+  }
+
+  if (metadata['enablepronunciation'] !== undefined) {
+    report.enablePronunciation = metadata['enablepronunciation'] === 'true' || metadata['enablepronunciation'] === '1';
+  }
+  if (metadata['pronunciationlanguage'] !== undefined) {
+    report.pronunciationLanguage = metadata['pronunciationlanguage'];
+  }
 
   return report;
 }
@@ -447,13 +510,19 @@ export async function parseZIPImport(fileBuffer: ArrayBuffer): Promise<Validatio
   const collectionDescription = parsed.description || '';
   const collectionDifficulty = parsed.difficulty || 'Master';
   const collectionGroup = parsed.group || parsed.groupName || 'General';
+  const collectionLanguage = parsed.language || parsed.collectionLanguage || undefined;
   const collectionTags = Array.isArray(parsed.tags) ? parsed.tags.map((t: any) => t.toString().trim()) : [];
+  const enablePronunciation = parsed.enablePronunciation === true || parsed.enablePronunciation === 'true';
+  const pronunciationLanguage = parsed.pronunciationLanguage || '';
   const rawQuestions = Array.isArray(parsed) ? parsed : parsed.questions || [];
   const report = validateAndFormatQuestions(rawQuestions, imagesMap);
   report.collectionName = collectionName;
   report.collectionDescription = collectionDescription;
   report.collectionDifficulty = collectionDifficulty;
   report.collectionGroup = collectionGroup;
+  report.collectionLanguage = detectCollectionLanguage(collectionLanguage, collectionGroup, collectionName, report.extractedQuestions);
   report.collectionTags = collectionTags;
+  report.enablePronunciation = enablePronunciation;
+  report.pronunciationLanguage = pronunciationLanguage;
   return report;
 }

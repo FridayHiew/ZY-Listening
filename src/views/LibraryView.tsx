@@ -1,10 +1,10 @@
 // LibraryView.tsx
 import React, { useState } from 'react';
-import { AppStorageState, KnowledgeCollection, QuizConfig } from '../types';
-import { exportCollectionAsJSON, exportCollectionAsZIP, exportCollectionAsCSV } from '../utils/exporter';
+import { AppStorageState, KnowledgeCollection, LanguageCode, QuizConfig } from '../types';
+import { exportCollectionAsZIP } from '../utils/exporter';
 import { getTranslation, translateDifficulty } from '../utils/i18n';
 import { resolveImagePath } from '../utils/storage';
-import { Plus, Play, FileText, Download, Trash2, Edit3, BookOpen, Layers, Check, X, Search, Folder, Tag, Award, FileSpreadsheet, FileJson, FileArchive } from 'lucide-react';
+import { Plus, Play, FileText, Download, Trash2, Edit3, BookOpen, Layers, Check, X, Search, Folder, Tag, Award, FileArchive } from 'lucide-react';
 
 interface LibraryViewProps {
   appState: AppStorageState;
@@ -34,12 +34,18 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
   const [editColName, setEditColName] = useState('');
   const [editColDesc, setEditColDesc] = useState('');
   const [editColGroup, setEditColGroup] = useState('General');
+  const [editColLanguage, setEditColLanguage] = useState<LanguageCode>('en');
   const [editColDifficulty, setEditColDifficulty] = useState('Year 1');
+  const [editColEnablePronunciation, setEditColEnablePronunciation] = useState(false);
+  const [editColPronunciationLanguage, setEditColPronunciationLanguage] = useState('');
 
   const [newColName, setNewColName] = useState('');
   const [newColDesc, setNewColDesc] = useState('');
   const [newColGroup, setNewColGroup] = useState('General');
+  const [newColLanguage, setNewColLanguage] = useState<LanguageCode>('en');
   const [newColDifficulty, setNewColDifficulty] = useState('Year 1');
+  const [newColEnablePronunciation, setNewColEnablePronunciation] = useState(false);
+  const [newColPronunciationLanguage, setNewColPronunciationLanguage] = useState('');
 
   const allGroups = Array.from(new Set(collections.map((c) => c.group || 'General')));
 
@@ -115,7 +121,10 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
     setEditColName(col.name);
     setEditColDesc(col.description || '');
     setEditColGroup(col.group || 'General');
+    setEditColLanguage(col.language || 'en');
     setEditColDifficulty(col.difficulty || 'Year 1');
+    setEditColEnablePronunciation(!!col.enablePronunciation);
+    setEditColPronunciationLanguage(col.pronunciationLanguage || '');
   };
 
   const handleSaveEdit = (e: React.FormEvent) => {
@@ -129,7 +138,10 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
           name: editColName.trim(),
           description: editColDesc.trim(),
           group: editColGroup.trim() || 'General',
+          language: editColLanguage,
           difficulty: editColDifficulty,
+          enablePronunciation: editColEnablePronunciation,
+          pronunciationLanguage: editColPronunciationLanguage,
           updatedAt: new Date().toISOString(),
         };
       }
@@ -144,7 +156,10 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
         name: editColName.trim(),
         description: editColDesc.trim(),
         group: editColGroup.trim() || 'General',
+        language: editColLanguage,
         difficulty: editColDifficulty,
+        enablePronunciation: editColEnablePronunciation,
+        pronunciationLanguage: editColPronunciationLanguage,
         updatedAt: new Date().toISOString(),
       });
     }
@@ -161,7 +176,10 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
       name: newColName.trim(),
       description: newColDesc.trim() || 'Custom Knowledge Collection',
       group: newColGroup.trim() || 'General',
+      language: newColLanguage,
       difficulty: newColDifficulty,
+      enablePronunciation: newColEnablePronunciation,
+      pronunciationLanguage: newColPronunciationLanguage,
       version: 1,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -174,7 +192,10 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
     setNewColName('');
     setNewColDesc('');
     setNewColGroup('General');
+    setNewColLanguage('en');
     setNewColDifficulty('Year 1');
+    setNewColEnablePronunciation(false);
+    setNewColPronunciationLanguage('');
     setShowCreateModal(false);
   };
 
@@ -337,6 +358,17 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                             </span>
                           );
                         })()}
+
+                        {/* Language Badge */}
+                        {(() => {
+                          const cLang = collection.language || 'en';
+                          const flagText = cLang === 'zh' ? '🇨🇳 华文' : cLang === 'ms' ? '🇲🇾 Melayu' : '🇬🇧 English';
+                          return (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 animate-fade-in">
+                              {flagText}
+                            </span>
+                          );
+                        })()}
                       </div>
 
                       {/* Book tags list */}
@@ -465,20 +497,6 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                             <Edit3 className="w-3.5 h-3.5" />
                           </button>
                           <button
-                            onClick={() => exportCollectionAsJSON(collection)}
-                            className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors"
-                            title={lang === 'zh' ? '导出 JSON 格式' : 'Export as JSON'}
-                          >
-                            <FileJson className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => exportCollectionAsCSV(collection)}
-                            className="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors"
-                            title={lang === 'zh' ? '导出 CSV 格式' : 'Export as CSV'}
-                          >
-                            <FileSpreadsheet className="w-3.5 h-3.5" />
-                          </button>
-                          <button
                             onClick={() => exportCollectionAsZIP(collection)}
                             className="p-1.5 rounded-lg text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-colors"
                             title={lang === 'zh' ? '导出 ZIP 格式 (含图片)' : 'Export as ZIP (with images)'}
@@ -552,6 +570,52 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                     <option key={g} value={g} />
                   ))}
                 </datalist>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-[#6B6559] dark:text-[#A09886] block mb-1">
+                  {lang === 'zh' ? '发音语言 (Pronunciation)' : lang === 'ms' ? 'Bahasa Sebutan Buku' : 'Book Pronunciation Language'}
+                </label>
+                <div className="flex flex-col gap-2">
+                  <label className="flex items-center gap-2 cursor-pointer text-[#2D2A26] dark:text-[#EAE7DF] text-xs">
+                    <input
+                      type="checkbox"
+                      checked={editColEnablePronunciation}
+                      onChange={(e) => setEditColEnablePronunciation(e.target.checked)}
+                      className="rounded border-[#E8E2D2] text-[#5A6D5B] focus:ring-[#5A6D5B]"
+                    />
+                    <span>{lang === 'zh' ? '启用发音功能' : 'Enable Pronunciation'}</span>
+                  </label>
+                  
+                  {editColEnablePronunciation && (
+                    <select
+                      value={editColPronunciationLanguage}
+                      onChange={(e) => setEditColPronunciationLanguage(e.target.value)}
+                      className="w-full px-3 py-2 text-xs bg-[#F5F2EA] dark:bg-[#2D322D] border border-[#E8E2D2] dark:border-[#353B35] rounded-xl text-[#2D2A26] dark:text-[#EAE7DF] focus:outline-none focus:ring-2 focus:ring-[#5A6D5B]"
+                    >
+                      <option value="">{lang === 'zh' ? '自动检测' : 'Auto Detect'}</option>
+                      <option value="en-US">English (US)</option>
+                      <option value="en-GB">English (UK)</option>
+                      <option value="zh-CN">Chinese (Simplified)</option>
+                      <option value="ms-MY">Bahasa Melayu</option>
+                    </select>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-[#6B6559] dark:text-[#A09886] block mb-1">
+                  {lang === 'zh' ? '书本语言' : 'Book Language'} *
+                </label>
+                <select
+                  value={editColLanguage}
+                  onChange={(e) => setEditColLanguage(e.target.value as LanguageCode)}
+                  className="w-full px-3 py-2 text-xs bg-[#F5F2EA] dark:bg-[#2D322D] border border-[#E8E2D2] dark:border-[#353B35] rounded-xl text-[#2D2A26] dark:text-[#EAE7DF] focus:outline-none focus:ring-2 focus:ring-[#5A6D5B]"
+                >
+                  <option value="en">🇬🇧 English (Bahasa Inggeris)</option>
+                  <option value="zh">🇨🇳 中文 / 华文 (Chinese)</option>
+                  <option value="ms">🇲🇾 Bahasa Melayu (Malay)</option>
+                </select>
               </div>
 
               <div>
@@ -657,6 +721,52 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                     <option key={g} value={g} />
                   ))}
                 </datalist>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-[#6B6559] dark:text-[#A09886] block mb-1">
+                  {lang === 'zh' ? '发音语言 (Pronunciation)' : lang === 'ms' ? 'Bahasa Sebutan Buku' : 'Book Pronunciation Language'}
+                </label>
+                <div className="flex flex-col gap-2">
+                  <label className="flex items-center gap-2 cursor-pointer text-[#2D2A26] dark:text-[#EAE7DF] text-xs">
+                    <input
+                      type="checkbox"
+                      checked={newColEnablePronunciation}
+                      onChange={(e) => setNewColEnablePronunciation(e.target.checked)}
+                      className="rounded border-[#E8E2D2] text-[#5A6D5B] focus:ring-[#5A6D5B]"
+                    />
+                    <span>{lang === 'zh' ? '启用发音功能' : 'Enable Pronunciation'}</span>
+                  </label>
+                  
+                  {newColEnablePronunciation && (
+                    <select
+                      value={newColPronunciationLanguage}
+                      onChange={(e) => setNewColPronunciationLanguage(e.target.value)}
+                      className="w-full px-3 py-2 text-xs bg-[#F5F2EA] dark:bg-[#2D322D] border border-[#E8E2D2] dark:border-[#353B35] rounded-xl text-[#2D2A26] dark:text-[#EAE7DF] focus:outline-none focus:ring-2 focus:ring-[#5A6D5B]"
+                    >
+                      <option value="">{lang === 'zh' ? '自动检测' : 'Auto Detect'}</option>
+                      <option value="en-US">English (US)</option>
+                      <option value="en-GB">English (UK)</option>
+                      <option value="zh-CN">Chinese (Simplified)</option>
+                      <option value="ms-MY">Bahasa Melayu</option>
+                    </select>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-[#6B6559] dark:text-[#A09886] block mb-1">
+                  {lang === 'zh' ? '书本语言' : 'Book Language'} *
+                </label>
+                <select
+                  value={newColLanguage}
+                  onChange={(e) => setNewColLanguage(e.target.value as LanguageCode)}
+                  className="w-full px-3 py-2 text-xs bg-[#F5F2EA] dark:bg-[#2D322D] border border-[#E8E2D2] dark:border-[#353B35] rounded-xl text-[#2D2A26] dark:text-[#EAE7DF] focus:outline-none focus:ring-2 focus:ring-[#5A6D5B]"
+                >
+                  <option value="en">🇬🇧 English (Bahasa Inggeris)</option>
+                  <option value="zh">🇨🇳 中文 / 华文 (Chinese)</option>
+                  <option value="ms">🇲🇾 Bahasa Melayu (Malay)</option>
+                </select>
               </div>
 
               <div>

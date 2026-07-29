@@ -45,6 +45,7 @@ export interface KnowledgeCollection {
   name: string;
   description?: string;
   group?: string;
+  language?: LanguageCode;
   version: number;
   difficulty?: string;
   tags?: string[];
@@ -52,6 +53,8 @@ export interface KnowledgeCollection {
   updatedAt: string;
   questionCount: number;
   categories: string[];
+  enablePronunciation?: boolean;
+  pronunciationLanguage?: string;
   questions: Question[];
 }
 
@@ -155,7 +158,10 @@ export interface ValidationReport {
   collectionDescription?: string;
   collectionDifficulty?: string;
   collectionGroup?: string;
+  collectionLanguage?: LanguageCode;
   collectionTags?: string[];
+  enablePronunciation?: boolean;
+  pronunciationLanguage?: string;
 }
 
 export interface GeneratedLicenseRecord {

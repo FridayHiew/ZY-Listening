@@ -40,25 +40,55 @@ export const QuizView: React.FC<QuizViewProps> = ({
   const [autoPlayAudio, setAutoPlayAudio] = useState(true);
   const [examSelfGrading, setExamSelfGrading] = useState<Map<number, boolean>>(new Map());
 
-  const getQuestionLanguage = (q?: Question): 'en' | 'zh' | 'ms' => {
-    if (!q) return lang;
-    const text = q.questionText || '';
-    if (/[\u4e00-\u9fa5]/.test(text)) return 'zh';
+  const getQuestionLanguage = (q?: Question): string => {
+    // 0. Check pronunciationLanguage explicitly if available
+    let parentCol;
+    if (config.collectionId) {
+      parentCol = collections.find((c) => c.id === config.collectionId);
+    } else if (q) {
+      parentCol = collections.find((c) => c.questions.some((item) => item.id === q.id));
+    }
+    
+    if (parentCol?.pronunciationLanguage) {
+      return parentCol.pronunciationLanguage;
+    }
 
-    const id = (q.id || '').toLowerCase();
-    const cat = (q.category || '').toLowerCase();
-    const ref = (q.sourceReference || '').toLowerCase();
+    // 1. Check if active quiz collection has explicit language setting
+    if (parentCol?.language) {
+      return parentCol.language;
+    }
 
-    if (id.startsWith('eng') || cat.includes('eng') || ref.includes('english')) return 'en';
-    if (id.startsWith('chi') || cat.includes('华') || cat.includes('chi') || ref.includes('华')) return 'zh';
-    if (id.startsWith('ms') || id.startsWith('bm') || cat.includes('sekolah') || cat.includes('malay') || ref.includes('bm') || ref.includes('buku teks bm')) return 'ms';
+    // 2. Fallback content heuristics
+    if (q) {
+      const text = q.questionText || '';
+      if (/[\u4e00-\u9fa5]/.test(text)) return 'zh';
+
+      const id = (q.id || '').toLowerCase();
+      const cat = (q.category || '').toLowerCase();
+      const ref = (q.sourceReference || '').toLowerCase();
+
+      if (id.startsWith('eng') || cat.includes('eng') || ref.includes('english')) return 'en';
+      if (id.startsWith('chi') || cat.includes('华') || cat.includes('chi') || ref.includes('华')) return 'zh';
+      if (id.startsWith('ms') || id.startsWith('bm') || cat.includes('sekolah') || cat.includes('malay') || ref.includes('bm') || ref.includes('buku teks bm')) return 'ms';
+    }
 
     return lang;
+  };
+
+  const isPronunciationEnabled = (q?: Question): boolean => {
+    let parentCol;
+    if (config.collectionId) {
+      parentCol = collections.find((c) => c.id === config.collectionId);
+    } else if (q) {
+      parentCol = collections.find((c) => c.questions.some((item) => item.id === q.id));
+    }
+    return parentCol?.enablePronunciation ?? true;
   };
 
   // Auto-speak current vocabulary word when question changes
   useEffect(() => {
     if (questions.length > 0 && currentQ && autoPlayAudio && !isExamCompleted) {
+      if (!isPronunciationEnabled(currentQ)) return;
       const qLang = getQuestionLanguage(currentQ);
       
       const t = setTimeout(() => {
@@ -495,15 +525,17 @@ export const QuizView: React.FC<QuizViewProps> = ({
                     <span className="font-bold text-slate-900 dark:text-slate-100 text-sm">
                       Q{idx + 1}. {ans.questionText}
                     </span>
-                    <button
-                      onClick={() => {
-                        quizSounds.speak(ans.questionText, getQuestionLanguage(matchedQ));
-                      }}
-                      className="p-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-600 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 inline-flex items-center transition-colors align-middle"
-                      title="Play pronunciation"
-                    >
-                      <Volume2 className="w-3.5 h-3.5" />
-                    </button>
+            {isPronunciationEnabled(matchedQ) && (
+              <button
+                onClick={() => {
+                  quizSounds.speak(ans.questionText, getQuestionLanguage(matchedQ));
+                }}
+                className="p-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-600 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 inline-flex items-center transition-colors align-middle"
+                title="Play pronunciation"
+              >
+                <Volume2 className="w-3.5 h-3.5" />
+              </button>
+            )}
                   </div>
                   {isAnsCorrect ? (
                     <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
@@ -714,7 +746,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
         </div>
 
         {/* Question Text & Audio Play Button Conditional Render */}
-        {config.mode === 'EXAM' ? (
+        {config.mode === 'EXAM' && isPronunciationEnabled(currentQ) ? (
           <div className="flex flex-col items-center justify-center py-8 px-4 bg-[#F5F2EA]/40 dark:bg-[#2D322D]/40 rounded-3xl border border-dashed border-[#E8E2D2] dark:border-[#353B35] text-center space-y-4 w-full">
             <div className="p-4 bg-[#5A6D5B]/10 dark:bg-[#708571]/20 text-[#5A6D5B] dark:text-[#A3B5A4] rounded-full animate-pulse">
               <Volume2 className="w-12 h-12" />
@@ -739,7 +771,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
               <span>{lang === 'zh' ? '播放音频 (Play)' : lang === 'ms' ? 'Main Sebutan (Play)' : 'Play Pronunciation'}</span>
             </button>
           </div>
-        ) : !showExplanation.get(currentIndex) ? (
+        ) : (!showExplanation.get(currentIndex) && isPronunciationEnabled(currentQ)) ? (
           <div className="flex flex-col items-center justify-center py-6 px-4 bg-[#F5F2EA]/40 dark:bg-[#2D322D]/40 rounded-3xl border border-dashed border-[#E8E2D2] dark:border-[#353B35] text-center space-y-3 w-full">
             <div className="p-3 bg-[#5A6D5B]/10 dark:bg-[#708571]/20 text-[#5A6D5B] dark:text-[#A3B5A4] rounded-full animate-bounce">
               <Volume2 className="w-10 h-10" />
@@ -764,20 +796,22 @@ export const QuizView: React.FC<QuizViewProps> = ({
         ) : (
           <div className="flex flex-col items-center justify-center p-5 bg-emerald-50/10 dark:bg-emerald-950/20 rounded-3xl border border-emerald-100/20 dark:border-emerald-850/20 text-center space-y-2 w-full">
             <span className="text-[10px] font-bold text-[#5A6D5B] dark:text-[#A3B5A4] uppercase tracking-wider block font-serif">
-              {lang === 'zh' ? '听力单词 (Word Spelled)' : lang === 'ms' ? 'Ejaan Perkataan' : 'Spelled Word'}
+              {lang === 'zh' ? '当前题目 (Question)' : lang === 'ms' ? 'Soalan' : 'Question Text'}
             </span>
             <h3 className="text-2xl font-extrabold text-[#3E4A3E] dark:text-[#F5F2EA] leading-relaxed font-serif">
               {currentQ.questionText}
             </h3>
-            <button
-              onClick={() => {
-                quizSounds.speak(currentQ.questionText, getQuestionLanguage(currentQ));
-              }}
-              className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 inline-flex items-center gap-1.5 text-xs font-semibold"
-            >
-              <Volume2 className="w-3.5 h-3.5" />
-              <span>{lang === 'zh' ? '重新播放' : lang === 'ms' ? 'Dengar lagi' : 'Replay Audio'}</span>
-            </button>
+            {isPronunciationEnabled(currentQ) && (
+              <button
+                onClick={() => {
+                  quizSounds.speak(currentQ.questionText, getQuestionLanguage(currentQ));
+                }}
+                className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 inline-flex items-center gap-1.5 text-xs font-semibold"
+              >
+                <Volume2 className="w-3.5 h-3.5" />
+                <span>{lang === 'zh' ? '重新播放' : lang === 'ms' ? 'Dengar lagi' : 'Replay Audio'}</span>
+              </button>
+            )}
           </div>
         )}
 
