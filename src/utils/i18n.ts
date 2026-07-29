@@ -4,7 +4,7 @@ import { LanguageCode } from '../types';
 export const TRANSLATIONS = {
   en: {
     // App Name & Slogan
-    appName: 'ZY-VocabHear',           // 或 '⭐ 智慧學習'、'⭐ 快樂學堂'
+    appName: '卓阅听词',           // 或 '⭐ 智慧學習'、'⭐ 快樂學堂'
     sloganCn: '化繁为易，耳听万词',    // 或 '學海無涯，樂在其中'
     sloganEn: 'Listen to learn, master with fun!',
     
@@ -260,7 +260,7 @@ export const TRANSLATIONS = {
   
   ms: {
     // App Name & Slogan
-    appName: 'ZY-VocabHear',
+    appName: '卓阅听词',
     sloganCn: '化繁为易，耳听万词',
     sloganEn: 'Dengar & kuasai perbendaharaan kata!',
     
@@ -516,7 +516,7 @@ export const TRANSLATIONS = {
   
   zh: {
     // App Name & Slogan
-    appName: '卓越听词 ZY-VocabHear',
+    appName: '卓阅听词',
     sloganCn: '化繁为易，耳听万词',
     sloganEn: '听音辨意，轻松掌握词汇！',
     

@@ -1,10 +1,10 @@
 // LibraryView.tsx
 import React, { useState } from 'react';
 import { AppStorageState, KnowledgeCollection, QuizConfig } from '../types';
-import { exportCollectionAsJSON, exportCollectionAsZIP } from '../utils/exporter';
+import { exportCollectionAsJSON, exportCollectionAsZIP, exportCollectionAsCSV } from '../utils/exporter';
 import { getTranslation, translateDifficulty } from '../utils/i18n';
 import { resolveImagePath } from '../utils/storage';
-import { Plus, Play, FileText, Download, Trash2, Edit3, BookOpen, Layers, Check, X, Search, Folder, Tag, Award } from 'lucide-react';
+import { Plus, Play, FileText, Download, Trash2, Edit3, BookOpen, Layers, Check, X, Search, Folder, Tag, Award, FileSpreadsheet, FileJson, FileArchive } from 'lucide-react';
 
 interface LibraryViewProps {
   appState: AppStorageState;
@@ -465,11 +465,25 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                             <Edit3 className="w-3.5 h-3.5" />
                           </button>
                           <button
-                            onClick={() => exportCollectionAsZIP(collection)}
-                            className="p-1.5 rounded-lg text-[#A09886] hover:bg-[#F5F2EA] dark:hover:bg-[#2D322D] transition-colors"
-                            title="Export Collection ZIP"
+                            onClick={() => exportCollectionAsJSON(collection)}
+                            className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors"
+                            title={lang === 'zh' ? '导出 JSON 格式' : 'Export as JSON'}
                           >
-                            <Download className="w-3.5 h-3.5" />
+                            <FileJson className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => exportCollectionAsCSV(collection)}
+                            className="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors"
+                            title={lang === 'zh' ? '导出 CSV 格式' : 'Export as CSV'}
+                          >
+                            <FileSpreadsheet className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => exportCollectionAsZIP(collection)}
+                            className="p-1.5 rounded-lg text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-colors"
+                            title={lang === 'zh' ? '导出 ZIP 格式 (含图片)' : 'Export as ZIP (with images)'}
+                          >
+                            <FileArchive className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => handleDeleteCollection(collection.id)}

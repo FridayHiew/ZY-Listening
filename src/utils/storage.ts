@@ -19,7 +19,7 @@ const DEFAULT_SETTINGS: AppSettings = {
 };
 
 const DEFAULT_PROFILE: UserProfile = {
-  displayName: '小寶',
+  displayName: '小卓',
   avatarSeed: 'learner1',
   createdAt: new Date().toISOString(),
 };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BaguaBookLogo } from './BaguaBookLogo';
+import appLogo from '@/src/assets/image/app_logo.png';
 import { LanguageCode } from '../types';
 import { Sparkles, ShieldCheck } from 'lucide-react';
 
@@ -68,7 +68,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
       <div className="flex flex-col items-center text-center my-auto max-w-md w-full px-4 animate-fade-in">
         {/* 1. Chinese Name */}
         <h1 className="text-3xl sm:text-4xl font-extrabold font-serif tracking-widest text-[#3E4A3E] dark:text-[#F5F2EA] mb-6">
-          卓越听词
+          卓阅
         </h1>
 
         {/* 2. Animated Bagua Logo Container with Pulsing Glow */}
@@ -76,14 +76,14 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
           {/* Subtle Rotating Halo Ring */}
           <div className="absolute -inset-3 rounded-full bg-gradient-to-r from-[#C5A059]/20 via-[#5A6D5B]/25 to-[#C5A059]/20 blur-lg opacity-75 animate-pulse" />
           <div className="relative p-2.5 rounded-2xl bg-white/90 dark:bg-[#242824]/90 shadow-md border border-[#E8E2D2] dark:border-[#353B35]">
-            <BaguaBookLogo className="w-16 h-16 sm:w-20 sm:h-20" />
+            <img src={appLogo} alt="App Logo" className="w-16 h-16 sm:w-20 sm:h-20" referrerPolicy="no-referrer" />
           </div>
         </div>
 
         {/* 3. English Name */}
         <div className="mb-6">
           <span className="text-base sm:text-lg font-bold tracking-widest text-[#C5A059] font-sans px-3 py-1 rounded-xl bg-[#5A6D5B]/10 dark:bg-[#708571]/20 border border-[#E8E2D2]/40 dark:border-[#353B35]/40">
-            ZY-VocabHear
+            Zhuo Yue
           </span>
         </div>
 

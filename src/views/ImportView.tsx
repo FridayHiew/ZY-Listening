@@ -1,10 +1,10 @@
 // ImportView.tsx
 import React, { useState } from 'react';
 import { AppStorageState, KnowledgeCollection, ValidationReport } from '../types';
-import { parseJSONImport, parseZIPImport } from '../utils/importer';
-import { downloadSampleJSONTemplate } from '../utils/exporter';
+import { parseJSONImport, parseZIPImport, parseCSVImport } from '../utils/importer';
+import { downloadSampleJSONTemplate, downloadSampleCSVTemplate, downloadSampleZIPTemplate } from '../utils/exporter';
 import { getTranslation } from '../utils/i18n';
-import { UploadCloud, FileCode, CheckCircle2, Sparkles, Copy, Check, Paperclip } from 'lucide-react';
+import { UploadCloud, FileCode, CheckCircle2, Sparkles, Copy, Check, Paperclip, FileJson, FileSpreadsheet, FileArchive } from 'lucide-react';
 
 interface ImportViewProps {
   appState: AppStorageState;
@@ -32,11 +32,45 @@ export const ImportView: React.FC<ImportViewProps> = ({
     if (lang === 'ms') return 'bm';
     return 'bm';
   });
+  const [promptFormat, setPromptFormat] = useState<'json' | 'csv'>('json');
   const [copiedPrompt, setCopiedPrompt] = useState(false);
 
-  const getPromptText = (targetLang: 'bm' | 'eng' | 'zh') => {
-    if (targetLang === 'bm') {
-      return `Please generate a Bahasa Melayu primary school KSSR spelling and vocabulary collection (Kosa Kata & Ejaan Bahasa Melayu) in valid JSON format based on the text / topic / document provided.
+  const getPromptText = (targetLang: 'bm' | 'eng' | 'zh', format: 'json' | 'csv') => {
+    if (format === 'csv') {
+      if (targetLang === 'bm') {
+        return `Please generate a Bahasa Melayu primary school KSSR spelling and vocabulary collection (Kosa Kata & Ejaan Bahasa Melayu) in valid CSV format based on the text / topic / document provided.
+
+Strictly output ONLY a raw CSV block (no intro text, no conversational text, no markdown formatting except code block if needed) containing the following columns:
+ID,Category,QuestionText,OptionA,OptionB,OptionC,OptionD,CorrectAnswer,Explanation,SourceReference,ImageFile
+
+Example CSV structure:
+ID,Category,QuestionText,OptionA,OptionB,OptionC,OptionD,CorrectAnswer,Explanation,SourceReference,ImageFile
+ms-q001,Sekolah & Rumah,perpustakaan,prepustakaan,perpustakan,perpustakaan,perpustakkaan,C,"图书馆（Library / Perpustakaan）。Maksud: Tempat membaca dan meminjam buku. 例句：Murid-murid membaca buku di perpustakaan.（同学们在图书馆看书。）","Buku Teks BM Tahun 3, Unit 4",
+ms-q002,Sekolah & Rumah,sekolah,sekolah,sekola,sekolat,syekolah,A,"学校（School / Sekolah）。Maksud: Tempat untuk belajar. 例句：Saya pergi ke sekolah setiap hari.（我每天去上学。）","Buku Teks BM Tahun 1, Unit 2",`;
+      } else if (targetLang === 'eng') {
+        return `Please generate a Primary School English (KSSR) spelling and vocabulary collection in valid CSV format based on the text / topic / document provided.
+
+Strictly output ONLY a raw CSV block (no intro text, no conversational text, no markdown formatting except code block if needed) containing the following columns:
+ID,Category,QuestionText,OptionA,OptionB,OptionC,OptionD,CorrectAnswer,Explanation,SourceReference,ImageFile
+
+Example CSV structure:
+ID,Category,QuestionText,OptionA,OptionB,OptionC,OptionD,CorrectAnswer,Explanation,SourceReference,ImageFile
+eng-q001,Animals,Butterfly,Butterflee,Butterfly,Butterflai,Butterflie,B,"蝴蝶（Butterfly）。例句：The butterfly has colourful wings.（蝴蝶有绚丽彩色的翅膀。）","English Year 2 Textbook, Unit 5",
+eng-q002,School Life,Library,Libary,Librari,Library,Lybrary,C,"图书馆（Library）。例句：We read books in the library.（我们在图书馆里看书。）","English Year 3 Textbook, Unit 1",`;
+      } else {
+        return `请根据提供的教学内容或词汇表，生成符合马来西亚华小华文 (SJKC KSSR) 标准的汉字词汇与拼写 CSV 题库。
+
+务必严格仅输出单个 CSV 内容（无需代码块标记，无需开场白），严格包含以下列：
+ID,Category,QuestionText,OptionA,OptionB,OptionC,OptionD,CorrectAnswer,Explanation,SourceReference,ImageFile
+
+示例 CSV 结构：
+ID,Category,QuestionText,OptionA,OptionB,OptionC,OptionD,CorrectAnswer,Explanation,SourceReference,ImageFile
+chi-q001,校园生活,学校,学校,学效,学较,学郊,A,"学校（School）。意思：学生求学读书的场所。例句：我们在学校里认真学习。（We study hard at school.）","华小二年级 华文课本 第一单元",
+chi-q002,校园生活,操场,燥场,操场,澡场,躁场,B,"操场（Field/Playground）。意思：供体育锻炼或集会的场地。例句：同学们在操场上踢足球。（Students are playing football on the field.）","华小一年级 华文课本 第三单元",`;
+      }
+    } else {
+      if (targetLang === 'bm') {
+        return `Please generate a Bahasa Melayu primary school KSSR spelling and vocabulary collection (Kosa Kata & Ejaan Bahasa Melayu) in valid JSON format based on the text / topic / document provided.
 
 Strictly output ONLY a single raw JSON object (no markdown formatting, no code block markers, no intro text) following this exact schema:
 
@@ -83,8 +117,8 @@ Strictly output ONLY a single raw JSON object (no markdown formatting, no code b
     }
   ]
 }`;
-    } else if (targetLang === 'eng') {
-      return `Please generate a Primary School English (KSSR) spelling and vocabulary collection in valid JSON format based on the text / topic / document provided.
+      } else if (targetLang === 'eng') {
+        return `Please generate a Primary School English (KSSR) spelling and vocabulary collection in valid JSON format based on the text / topic / document provided.
 
 Strictly output ONLY a single raw JSON object (no markdown formatting, no code block markers, no intro text) following this exact schema:
 
@@ -131,8 +165,8 @@ Strictly output ONLY a single raw JSON object (no markdown formatting, no code b
     }
   ]
 }`;
-    } else {
-      return `请根据提供的教学内容或词汇表，生成符合马来西亚华小华文 (SJKC KSSR) 标准的汉字词汇与拼写 JSON 题库。
+      } else {
+        return `请根据提供的教学内容或词汇表，生成符合马来西亚华小华文 (SJKC KSSR) 标准的汉字词汇与拼写 JSON 题库。
 
 务必严格仅输出单个 JSON 对象（无需 Markdown 格式，无需代码块标记，无需开场白），严格遵循以下格式：
 
@@ -179,10 +213,11 @@ Strictly output ONLY a single raw JSON object (no markdown formatting, no code b
     }
   ]
 }`;
+      }
     }
   };
 
-  const aiPromptText = getPromptText(selectedTargetLang);
+  const aiPromptText = getPromptText(selectedTargetLang, promptFormat);
 
   const handleCopyPrompt = () => {
     navigator.clipboard.writeText(aiPromptText);
@@ -205,11 +240,14 @@ Strictly output ONLY a single raw JSON object (no markdown formatting, no code b
       if (filename.endsWith('.json')) {
         const text = await file.text();
         res = await parseJSONImport(text);
+      } else if (filename.endsWith('.csv')) {
+        const text = await file.text();
+        res = await parseCSVImport(text, file.name);
       } else if (filename.endsWith('.zip')) {
         const buffer = await file.arrayBuffer();
         res = await parseZIPImport(buffer);
       } else {
-        alert(t('invalidBackup'));
+        alert(lang === 'zh' ? '不支持的文件格式，请上传 .json, .csv 或 .zip 文件。' : 'Unsupported file format. Please upload .json, .csv, or .zip files.');
         setIsProcessing(false);
         return;
       }
@@ -293,7 +331,11 @@ Strictly output ONLY a single raw JSON object (no markdown formatting, no code b
           {t('dropFileHere')}
         </h3>
         <p className="text-xs text-[#7C776B] dark:text-[#A09886] max-w-sm mx-auto mb-4">
-          {t('supportsJsonZip')}
+          {lang === 'zh' 
+            ? '支持 JSON, CSV 或打包的 ZIP 格式' 
+            : lang === 'ms' 
+            ? 'Sokong format JSON, CSV atau ZIP yang dibungkus' 
+            : 'Supports JSON, CSV, or packaged ZIP formats'}
         </p>
 
         <label className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#5A6D5B] hover:bg-[#485749] text-white font-semibold text-xs cursor-pointer transition-all shadow-sm">
@@ -301,7 +343,7 @@ Strictly output ONLY a single raw JSON object (no markdown formatting, no code b
           <span>{t('chooseFile')}</span>
           <input
             type="file"
-            accept=".json,.zip"
+            accept=".json,.zip,.csv"
             onChange={handleFileUpload}
             className="hidden"
           />
@@ -451,30 +493,57 @@ Strictly output ONLY a single raw JSON object (no markdown formatting, no code b
               </button>
             </div>
 
-            <div className="flex items-center gap-2 border-b border-[#E8E2D2] dark:border-[#353B35] pb-3 overflow-x-auto no-scrollbar">
-              <span className="text-xs font-semibold text-[#7C776B] dark:text-[#A09886] mr-1 shrink-0">
-                {lang === 'zh' ? '语言:' : lang === 'ms' ? 'Bahasa:' : 'Language:'}
-              </span>
-              {[
-                { id: 'bm', label: 'BM' },
-                { id: 'eng', label: 'Eng' },
-                { id: 'zh', label: 'Zh' },
-              ].map((item) => {
-                const isActive = selectedTargetLang === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => setSelectedTargetLang(item.id as 'bm' | 'eng' | 'zh')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
-                      isActive
-                        ? 'bg-[#5A6D5B] text-white shadow-sm'
-                        : 'bg-[#F5F2EA] dark:bg-[#2D322D] text-[#6B6559] dark:text-[#A09886] hover:bg-[#EAE5D8] dark:hover:bg-[#353B35]'
-                    }`}
-                  >
-                    {item.label}
-                  </button>
-                );
-              })}
+            <div className="flex flex-col sm:flex-row gap-3 border-b border-[#E8E2D2] dark:border-[#353B35] pb-3 overflow-x-auto no-scrollbar">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-[#7C776B] dark:text-[#A09886] mr-1 shrink-0">
+                  {lang === 'zh' ? '语言:' : lang === 'ms' ? 'Bahasa:' : 'Language:'}
+                </span>
+                {[
+                  { id: 'bm', label: 'BM' },
+                  { id: 'eng', label: 'Eng' },
+                  { id: 'zh', label: 'Zh' },
+                ].map((item) => {
+                  const isActive = selectedTargetLang === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => setSelectedTargetLang(item.id as 'bm' | 'eng' | 'zh')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
+                        isActive
+                          ? 'bg-[#5A6D5B] text-white shadow-sm'
+                          : 'bg-[#F5F2EA] dark:bg-[#2D322D] text-[#6B6559] dark:text-[#A09886] hover:bg-[#EAE5D8] dark:hover:bg-[#353B35]'
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="flex items-center gap-2 sm:ml-auto">
+                <span className="text-xs font-semibold text-[#7C776B] dark:text-[#A09886] mr-1 shrink-0">
+                  {lang === 'zh' ? '格式:' : lang === 'ms' ? 'Format:' : 'Format:'}
+                </span>
+                {[
+                  { id: 'json', label: 'JSON' },
+                  { id: 'csv', label: 'CSV' },
+                ].map((item) => {
+                  const isActive = promptFormat === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => setPromptFormat(item.id as 'json' | 'csv')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
+                        isActive
+                          ? 'bg-[#5A6D5B] text-white shadow-sm'
+                          : 'bg-[#F5F2EA] dark:bg-[#2D322D] text-[#6B6559] dark:text-[#A09886] hover:bg-[#EAE5D8] dark:hover:bg-[#353B35]'
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <div className="relative">
@@ -488,29 +557,43 @@ Strictly output ONLY a single raw JSON object (no markdown formatting, no code b
               <span>
                 <strong>{lang === 'zh' ? '使用说明：' : 'Instruction:'}</strong>{' '}
                 {lang === 'zh'
-                  ? '复制上方提示词，附带您的学习资料或 PDF 文件发送给 ChatGPT、Gemini 或 Claude 即可生成标准 JSON 题库。'
-                  : 'Copy the prompt above, attach your study files/PDFs, and paste into ChatGPT or Gemini to receive a ready-to-import JSON package.'}
+                  ? `复制上方提示词，附带您的学习资料或 PDF 文件发送给 ChatGPT、Gemini 或 Claude 即可生成标准 ${promptFormat.toUpperCase()} 题库。`
+                  : `Copy the prompt above, attach your study files/PDFs, and paste into ChatGPT or Gemini to receive a ready-to-import ${promptFormat.toUpperCase()} package.`}
               </span>
             </div>
           </div>
 
           {/* Starter Template Downloader */}
-          <div className="p-5 bg-[#F5F2EA] dark:bg-[#2D322D] rounded-2xl border border-[#E8E2D2] dark:border-[#353B35] flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="p-5 bg-[#F5F2EA] dark:bg-[#2D322D] rounded-2xl border border-[#E8E2D2] dark:border-[#353B35] space-y-3">
             <div>
               <h4 className="text-xs font-bold text-[#3E4A3E] dark:text-[#F5F2EA] font-serif">
                 {t('needTemplate')}
               </h4>
               <p className="text-[11px] text-[#7C776B] dark:text-[#A09886]">
-                {lang === 'zh' ? '下载标准预置格式的 JSON 题目模版文件' : 'Download standard pre-formatted question template for JSON'}
+                {lang === 'zh' ? '下载标准预置格式的 JSON、CSV 或 ZIP 模版文件进行编辑与导入' : 'Download standard pre-formatted JSON, CSV, or ZIP question templates for editing and importing'}
               </p>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={downloadSampleJSONTemplate}
                 className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white dark:bg-[#242824] text-[#2D2A26] dark:text-[#EAE7DF] border border-[#E8E2D2] dark:border-[#353B35] hover:bg-[#EAE5D8] text-xs font-semibold shadow-sm transition-colors"
               >
-                <FileCode className="w-3.5 h-3.5 text-[#5A6D5B]" />
-                <span>{t('downloadTemplate')}</span>
+                <FileJson className="w-3.5 h-3.5 text-[#5A6D5B]" />
+                <span>JSON Template</span>
+              </button>
+              <button
+                onClick={downloadSampleCSVTemplate}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white dark:bg-[#242824] text-[#2D2A26] dark:text-[#EAE7DF] border border-[#E8E2D2] dark:border-[#353B35] hover:bg-[#EAE5D8] text-xs font-semibold shadow-sm transition-colors"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5 text-amber-600" />
+                <span>CSV Template</span>
+              </button>
+              <button
+                onClick={downloadSampleZIPTemplate}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white dark:bg-[#242824] text-[#2D2A26] dark:text-[#EAE7DF] border border-[#E8E2D2] dark:border-[#353B35] hover:bg-[#EAE5D8] text-xs font-semibold shadow-sm transition-colors"
+              >
+                <FileArchive className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                <span>ZIP Template</span>
               </button>
             </div>
           </div>

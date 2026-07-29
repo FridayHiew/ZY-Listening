@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AppSettings, LanguageCode, LicenseData, UserProfile } from '../types';
 import { getTranslation } from '../utils/i18n';
-import { BaguaBookLogo } from './BaguaBookLogo';
+import appLogo from '@/src/assets/image/app_logo.png';
 import { ShieldCheck, ShieldAlert, Key, Moon, Sun, Lock, WifiOff, Wifi, Sparkles } from 'lucide-react';
 
 interface HeaderProps {
@@ -56,7 +56,7 @@ export const Header: React.FC<HeaderProps> = ({
             title="Click to view Splash Screen"
             className="group p-1 rounded-xl bg-[#5A6D5B]/10 hover:bg-[#5A6D5B]/20 dark:bg-[#708571]/20 dark:hover:bg-[#708571]/30 transition-all active:scale-95 shrink-0"
           >
-            <BaguaBookLogo className="w-9 h-9 sm:w-10 sm:h-10 transition-transform group-hover:scale-105" />
+            <img src={appLogo} alt="App Logo" className="w-9 h-9 sm:w-10 sm:h-10 transition-transform group-hover:scale-105" referrerPolicy="no-referrer" />
           </button>
           <div>
             <h1

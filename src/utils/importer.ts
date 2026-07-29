@@ -250,6 +250,103 @@ export async function parseJSONImport(fileText: string): Promise<ValidationRepor
 }
 
 /**
+ * Parse CSV File content
+ */
+export async function parseCSVImport(fileText: string, filename: string): Promise<ValidationReport> {
+  const parsedLines = parseCSV(fileText);
+  if (parsedLines.length === 0) {
+    return {
+      isValid: false,
+      totalRows: 0,
+      validRows: 0,
+      invalidRows: 0,
+      errors: [{ row: 0, field: 'file', message: 'Empty CSV file' }],
+      warnings: [],
+      extractedQuestions: [],
+      collectionName: '',
+    };
+  }
+
+  // Determine if first row is headers
+  const firstRow = parsedLines[0];
+  const commonHeaders = ['question', 'text', 'word', 'vocab', 'option', 'correct', 'answer', 'id', 'category'];
+  const hasHeaders = firstRow.some(cell => 
+    commonHeaders.some(ch => cell.toLowerCase().includes(ch))
+  );
+
+  let headers: string[] = [];
+  let dataRows: string[][] = [];
+
+  if (hasHeaders) {
+    headers = firstRow.map(h => h.trim().toLowerCase().replace(/^["']|["']$/g, ''));
+    dataRows = parsedLines.slice(1);
+  } else {
+    // Standard sequence mapping
+    headers = ['id', 'category', 'questiontext', 'optiona', 'optionb', 'optionc', 'optiond', 'correctanswer', 'explanation', 'sourcereference', 'imagefile'];
+    dataRows = parsedLines;
+  }
+
+  const rawQuestions: any[] = dataRows.map((row, idx) => {
+    const obj: any = {};
+    if (hasHeaders) {
+      headers.forEach((header, colIdx) => {
+        const val = row[colIdx] !== undefined ? row[colIdx] : '';
+        if (header === 'question' || header === 'questiontext' || header === 'word' || header === 'vocabulary' || header === 'term') {
+          obj.questionText = val;
+        } else if (header === 'category') {
+          obj.category = val;
+        } else if (header === 'id') {
+          obj.id = val;
+        } else if (header === 'optiona' || header === 'option1' || header === 'a') {
+          obj.optionA = val;
+        } else if (header === 'optionb' || header === 'option2' || header === 'b') {
+          obj.optionB = val;
+        } else if (header === 'optionc' || header === 'option3' || header === 'c') {
+          obj.optionC = val;
+        } else if (header === 'optiond' || header === 'option4' || header === 'd') {
+          obj.optionD = val;
+        } else if (header === 'correctanswer' || header === 'correctindex' || header === 'correct' || header === 'answer') {
+          obj.correctAnswer = val;
+        } else if (header === 'explanation' || header === 'meaning' || header === 'desc' || header === 'description') {
+          obj.explanation = val;
+        } else if (header === 'sourcereference' || header === 'source' || header === 'reference') {
+          obj.sourceReference = val;
+        } else if (header === 'image' || header === 'imagefile') {
+          obj.imageFile = val;
+        } else {
+          obj[header] = val;
+        }
+      });
+    } else {
+      obj.id = row[0] || `q_${Date.now()}_${idx}`;
+      obj.category = row[1] || 'General';
+      obj.questionText = row[2] || '';
+      obj.optionA = row[3] || '';
+      obj.optionB = row[4] || '';
+      obj.optionC = row[5] || '';
+      obj.optionD = row[6] || '';
+      obj.correctAnswer = row[7] || '';
+      obj.explanation = row[8] || '';
+      obj.sourceReference = row[9] || '';
+      obj.imageFile = row[10] || '';
+    }
+    return obj;
+  });
+
+  const cleanName = filename.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ').trim();
+  const collectionName = cleanName ? cleanName.charAt(0).toUpperCase() + cleanName.slice(1) : 'CSV Imported Collection';
+
+  const report = validateAndFormatQuestions(rawQuestions);
+  report.collectionName = collectionName;
+  report.collectionDescription = `Imported from CSV file ${filename}.`;
+  report.collectionDifficulty = 'Primary';
+  report.collectionGroup = 'General';
+  report.collectionTags = ['csv', 'imported'];
+
+  return report;
+}
+
+/**
  * Parse ZIP package containing questions.json + images/
  */
 export async function parseZIPImport(fileBuffer: ArrayBuffer): Promise<ValidationReport> {

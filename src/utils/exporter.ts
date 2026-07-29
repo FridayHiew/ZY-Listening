@@ -123,3 +123,148 @@ export function downloadSampleJSONTemplate() {
   const blob = new Blob([JSON.stringify(template, null, 2)], { type: 'application/json' });
   downloadBlob(blob, 'sample_questions_template.json');
 }
+
+/**
+ * Export collection as CSV
+ */
+export function exportCollectionAsCSV(collection: KnowledgeCollection) {
+  const headers = [
+    'ID',
+    'Category',
+    'QuestionText',
+    'OptionA',
+    'OptionB',
+    'OptionC',
+    'OptionD',
+    'CorrectAnswer',
+    'Explanation',
+    'SourceReference',
+    'ImageFile'
+  ];
+
+  const escapeCSVField = (val: string) => {
+    if (val === undefined || val === null) return '';
+    const str = val.toString();
+    if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+
+  const rows = collection.questions.map((q) => {
+    const idx = q.correctIndex >= 0 && q.correctIndex <= 3 ? q.correctIndex : 0;
+    const optionLetters = ['A', 'B', 'C', 'D'];
+    return [
+      q.id,
+      q.category || 'General',
+      q.questionText || '',
+      q.options[0] || '',
+      q.options[1] || '',
+      q.options[2] || '',
+      q.options[3] || '',
+      optionLetters[idx],
+      q.explanation || '',
+      q.sourceReference || '',
+      q.image || '',
+    ];
+  });
+
+  const csvContent = [
+    headers.map(escapeCSVField).join(','),
+    ...rows.map(row => row.map(escapeCSVField).join(','))
+  ].join('\n');
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const filename = `${collection.name.toLowerCase().replace(/[^a-z0-9]/g, '_')}_package.csv`;
+  downloadBlob(blob, filename);
+}
+
+/**
+ * Download sample CSV template matching system schema
+ */
+export function downloadSampleCSVTemplate() {
+  const headers = [
+    'ID',
+    'Category',
+    'QuestionText',
+    'OptionA',
+    'OptionB',
+    'OptionC',
+    'OptionD',
+    'CorrectAnswer',
+    'Explanation',
+    'SourceReference',
+    'ImageFile'
+  ];
+  const sampleRow = [
+    'ms-q001',
+    'Sekolah & Rumah',
+    'sekolah',
+    'sekolah',
+    'sekola',
+    'sekolat',
+    'syekolah',
+    'A',
+    '学校（School / Sekolah）。Maksud: Tempat untuk belajar. 例句：Saya pergi ke sekolah setiap hari.（我每天去上学。）',
+    'Buku Teks BM Tahun 1, Unit 2',
+    ''
+  ];
+
+  const escapeCSVField = (val: string) => {
+    if (val === undefined || val === null) return '';
+    const str = val.toString();
+    if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+
+  const csvContent = [
+    headers.map(escapeCSVField).join(','),
+    sampleRow.map(escapeCSVField).join(',')
+  ].join('\n');
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  downloadBlob(blob, 'sample_questions_template.csv');
+}
+
+/**
+ * Download sample ZIP template matching system schema
+ */
+export async function downloadSampleZIPTemplate() {
+  const zip = new JSZip();
+
+  const template = {
+    collectionName: 'Primary School Vocabulary ZIP',
+    version: 1,
+    description: 'Sample ZIP package containing vocabulary JSON and images.',
+    group: 'General',
+    difficulty: 'Easy',
+    tags: ['zip', 'sample'],
+    questions: [
+      {
+        id: 'zip-q001',
+        category: 'Nature',
+        questionText: 'flower',
+        statements: {},
+        optionA: 'flowar',
+        optionB: 'flower',
+        optionC: 'flowre',
+        optionD: 'flover',
+        correctAnswer: 'B',
+        explanation: '花朵（Flower）。例句：The flower smells sweet.（花朵闻起来很香。）',
+        sourceReference: 'English Science Grade 1',
+        imageFile: 'images/flower.png',
+      }
+    ],
+  };
+
+  zip.file('questions.json', JSON.stringify(template, null, 2));
+  
+  // Add a placeholder small red 1x1 png image
+  const placeholderPngBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+  zip.file('images/flower.png', placeholderPngBase64, { base64: true });
+
+  const content = await zip.generateAsync({ type: 'blob' });
+  downloadBlob(content, 'sample_questions_template.zip');
+}
