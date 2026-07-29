@@ -240,8 +240,6 @@ export async function parseJSONImport(fileText: string): Promise<ValidationRepor
   const collectionGroup = parsed.group || parsed.groupName || 'General';
   const collectionLanguage = parsed.language || parsed.collectionLanguage || undefined;
   const collectionTags = Array.isArray(parsed.tags) ? parsed.tags.map((t: any) => t.toString().trim()) : [];
-  const enablePronunciation = parsed.enablePronunciation === true || parsed.enablePronunciation === 'true';
-  const pronunciationLanguage = parsed.pronunciationLanguage || '';
   let rawQuestions: any[] = [];
 
   if (Array.isArray(parsed)) {
@@ -262,8 +260,6 @@ export async function parseJSONImport(fileText: string): Promise<ValidationRepor
       collectionDifficulty,
       collectionGroup,
       collectionTags,
-      enablePronunciation,
-      pronunciationLanguage,
     };
   }
 
@@ -274,8 +270,6 @@ export async function parseJSONImport(fileText: string): Promise<ValidationRepor
   report.collectionGroup = collectionGroup;
   report.collectionLanguage = detectCollectionLanguage(collectionLanguage, collectionGroup, collectionName, report.extractedQuestions);
   report.collectionTags = collectionTags;
-  report.enablePronunciation = enablePronunciation;
-  report.pronunciationLanguage = pronunciationLanguage;
   return report;
 }
 
@@ -283,7 +277,46 @@ export async function parseJSONImport(fileText: string): Promise<ValidationRepor
  * Parse CSV File content
  */
 export async function parseCSVImport(fileText: string, filename: string): Promise<ValidationReport> {
-  const parsedLines = parseCSV(fileText);
+  const lines = fileText.split(/\r?\n/);
+  
+  let collectionName = '';
+  let collectionDescription = '';
+  let collectionDifficulty = 'Primary';
+  let collectionGroup = 'General';
+  let collectionLanguage: string | undefined = undefined;
+  let collectionTags: string[] = ['csv', 'imported'];
+  
+  const dataLines: string[] = [];
+  
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('#')) {
+      const metaContent = trimmed.substring(1).trim();
+      const colonIdx = metaContent.indexOf(':');
+      if (colonIdx > 0) {
+        const key = metaContent.substring(0, colonIdx).trim().toLowerCase();
+        const val = metaContent.substring(colonIdx + 1).trim();
+        if (key === 'collectionname' || key === 'name') {
+          collectionName = val;
+        } else if (key === 'description') {
+          collectionDescription = val;
+        } else if (key === 'difficulty') {
+          collectionDifficulty = val;
+        } else if (key === 'group') {
+          collectionGroup = val;
+        } else if (key === 'language') {
+          collectionLanguage = val;
+        } else if (key === 'tags') {
+          collectionTags = val.split(',').map(t => t.trim()).filter(Boolean);
+        }
+      }
+    } else if (trimmed || line === '') {
+      dataLines.push(line);
+    }
+  }
+  
+  const cleanFileText = dataLines.join('\n');
+  const parsedLines = parseCSV(cleanFileText);
   if (parsedLines.length === 0) {
     return {
       isValid: false,
@@ -297,29 +330,10 @@ export async function parseCSVImport(fileText: string, filename: string): Promis
     };
   }
 
-  let metadata: any = {};
-  let contentStartIndex = 0;
-
-  // Check if first few rows contain metadata
-  for (let i = 0; i < parsedLines.length; i++) {
-    const row = parsedLines[i];
-    if (row.length === 0 || (row.length === 1 && !row[0].trim())) {
-      continue;
-    }
-
-    const firstCell = (row[0] || '').toLowerCase().trim();
-    if (['collectionname', 'description', 'group', 'difficulty', 'enablepronunciation', 'pronunciationlanguage', 'tags'].includes(firstCell)) {
-      metadata[firstCell] = row[1] || '';
-    } else {
-      contentStartIndex = i;
-      break;
-    }
-  }
-
   // Determine if first row is headers
-  const firstRow = parsedLines[contentStartIndex];
+  const firstRow = parsedLines[0];
   const commonHeaders = ['question', 'text', 'word', 'vocab', 'option', 'correct', 'answer', 'id', 'category'];
-  const hasHeaders = firstRow && firstRow.some(cell => 
+  const hasHeaders = firstRow.some(cell => 
     commonHeaders.some(ch => cell.toLowerCase().includes(ch))
   );
 
@@ -328,11 +342,11 @@ export async function parseCSVImport(fileText: string, filename: string): Promis
 
   if (hasHeaders) {
     headers = firstRow.map(h => h.trim().toLowerCase().replace(/^["']|["']$/g, ''));
-    dataRows = parsedLines.slice(contentStartIndex + 1);
+    dataRows = parsedLines.slice(1);
   } else {
     // Standard sequence mapping
     headers = ['id', 'category', 'questiontext', 'optiona', 'optionb', 'optionc', 'optiond', 'correctanswer', 'explanation', 'sourcereference', 'imagefile'];
-    dataRows = parsedLines.slice(contentStartIndex);
+    dataRows = parsedLines;
   }
 
   const rawQuestions: any[] = dataRows.map((row, idx) => {
@@ -384,27 +398,15 @@ export async function parseCSVImport(fileText: string, filename: string): Promis
 
   const cleanName = filename.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ').trim();
   const defaultCollectionName = cleanName ? cleanName.charAt(0).toUpperCase() + cleanName.slice(1) : 'CSV Imported Collection';
-  const collectionName = metadata['collectionname'] || defaultCollectionName;
+  const finalCollectionName = collectionName || defaultCollectionName;
 
   const report = validateAndFormatQuestions(rawQuestions);
-  report.collectionName = collectionName;
-  report.collectionDescription = metadata['description'] || `Imported from CSV file ${filename}.`;
-  report.collectionDifficulty = metadata['difficulty'] || 'Primary';
-  report.collectionGroup = metadata['group'] || 'General';
-  report.collectionLanguage = detectCollectionLanguage(undefined, report.collectionGroup, collectionName, report.extractedQuestions);
-  
-  if (metadata['tags']) {
-    report.collectionTags = metadata['tags'].split(',').map((t: string) => t.trim()).filter(Boolean);
-  } else {
-    report.collectionTags = ['csv', 'imported'];
-  }
-
-  if (metadata['enablepronunciation'] !== undefined) {
-    report.enablePronunciation = metadata['enablepronunciation'] === 'true' || metadata['enablepronunciation'] === '1';
-  }
-  if (metadata['pronunciationlanguage'] !== undefined) {
-    report.pronunciationLanguage = metadata['pronunciationlanguage'];
-  }
+  report.collectionName = finalCollectionName;
+  report.collectionDescription = collectionDescription || `Imported from CSV file ${filename}.`;
+  report.collectionDifficulty = collectionDifficulty;
+  report.collectionGroup = collectionGroup;
+  report.collectionLanguage = detectCollectionLanguage(collectionLanguage, collectionGroup, finalCollectionName, report.extractedQuestions);
+  report.collectionTags = collectionTags;
 
   return report;
 }
@@ -512,8 +514,6 @@ export async function parseZIPImport(fileBuffer: ArrayBuffer): Promise<Validatio
   const collectionGroup = parsed.group || parsed.groupName || 'General';
   const collectionLanguage = parsed.language || parsed.collectionLanguage || undefined;
   const collectionTags = Array.isArray(parsed.tags) ? parsed.tags.map((t: any) => t.toString().trim()) : [];
-  const enablePronunciation = parsed.enablePronunciation === true || parsed.enablePronunciation === 'true';
-  const pronunciationLanguage = parsed.pronunciationLanguage || '';
   const rawQuestions = Array.isArray(parsed) ? parsed : parsed.questions || [];
   const report = validateAndFormatQuestions(rawQuestions, imagesMap);
   report.collectionName = collectionName;
@@ -522,7 +522,5 @@ export async function parseZIPImport(fileBuffer: ArrayBuffer): Promise<Validatio
   report.collectionGroup = collectionGroup;
   report.collectionLanguage = detectCollectionLanguage(collectionLanguage, collectionGroup, collectionName, report.extractedQuestions);
   report.collectionTags = collectionTags;
-  report.enablePronunciation = enablePronunciation;
-  report.pronunciationLanguage = pronunciationLanguage;
   return report;
 }

@@ -32,6 +32,7 @@ export const ImportView: React.FC<ImportViewProps> = ({
     if (lang === 'ms') return 'bm';
     return 'bm';
   });
+  const [promptFormat, setPromptFormat] = useState<'json' | 'csv'>('json');
   const [copiedPrompt, setCopiedPrompt] = useState(false);
 
   const reportRef = useRef<HTMLDivElement>(null);
@@ -46,34 +47,79 @@ export const ImportView: React.FC<ImportViewProps> = ({
     }
   }, [report]);
 
-  const getPromptText = (targetLang: 'bm' | 'eng' | 'zh') => {
-    if (targetLang === 'bm') {
-      return `Please generate a Bahasa Melayu primary school KSSR spelling and vocabulary collection (Kosa Kata & Ejaan Bahasa Melayu) based on the text / topic / document provided. 
+  const getPromptText = (targetLang: 'bm' | 'eng' | 'zh', format: 'json' | 'csv') => {
+    if (format === 'csv') {
+      if (targetLang === 'bm') {
+        return `Please generate a Bahasa Melayu primary school KSSR spelling and vocabulary collection (Kosa Kata & Ejaan Bahasa Melayu) in valid CSV format based on the text / topic / document provided.
 
-You can output the result in EITHER JSON OR CSV format. Strictly follow the exact schemas below:
+Strictly output ONLY a raw CSV block (no intro text, no conversational text, no markdown formatting except code block if needed) containing metadata rows starting with #, followed by the header column row, and then the questions.
 
---- JSON FORMAT SCHEMA ---
-Strictly output ONLY a single raw JSON object (no markdown formatting, no code block markers) following this exact schema:
+Example CSV structure:
+# collectionName: Kosa Kata Bahasa Melayu (KSSR)
+# version: 1
+# description: Latihan ejaan dan kosa kata Bahasa Melayu Sekolah Rendah (SK & SJKC) selaras dengan KSSR.
+# group: Malay
+# language: bm
+# difficulty: Tahun 2
+# tags: ejaan
+ID,Category,QuestionText,OptionA,OptionB,OptionC,OptionD,CorrectAnswer,Explanation,SourceReference,ImageFile
+ms-q001,Sekolah & Rumah,perpustakaan,prepustakaan,perpustakan,perpustakaan,perpustakkaan,C,"图书馆（Library / Perpustakaan）。Maksud: Tempat membaca dan meminjam buku. 例句：Murid-murid membaca buku di perpustakaan.（同学们在图书馆看书。）","Buku Teks BM Tahun 3, Unit 4",
+ms-q002,Sekolah & Rumah,sekolah,sekolah,sekola,sekolat,syekolah,A,"学校（School / Sekolah）。Maksud: Tempat untuk belajar. 例句：Saya pergi ke sekolah setiap hari.（我每天去上学。）","Buku Teks BM Tahun 1, Unit 2",`;
+      } else if (targetLang === 'eng') {
+        return `Please generate a Primary School English (KSSR) spelling and vocabulary collection in valid CSV format based on the text / topic / document provided.
+
+Strictly output ONLY a raw CSV block (no intro text, no conversational text, no markdown formatting except code block if needed) containing metadata rows starting with #, followed by the header column row, and then the questions.
+
+Example CSV structure:
+# collectionName: Primary School English Vocabulary (KSSR)
+# version: 1
+# description: Standard Year 1-6 English spelling vocabulary and common terms for primary school (KSSR).
+# group: English
+# language: en
+# difficulty: Year 2
+# tags: english
+ID,Category,QuestionText,OptionA,OptionB,OptionC,OptionD,CorrectAnswer,Explanation,SourceReference,ImageFile
+eng-q001,Animals,Butterfly,Butterflee,Butterfly,Butterflai,Butterflie,B,"蝴蝶（Butterfly）。例句：The butterfly has colourful wings.（蝴蝶有绚丽彩色的翅膀。）","English Year 2 Textbook, Unit 5",
+eng-q002,School Life,Library,Libary,Librari,Library,Lybrary,C,"图书馆（Library）。例句：We read books in the library.（我们在图书馆里看书。）","English Year 3 Textbook, Unit 1",`;
+      } else {
+        return `请根据提供的教学内容或词汇表，生成符合马来西亚华小华文 (SJKC KSSR) 标准的汉字词汇与拼写 CSV 题库。
+
+务必严格仅输出单个 CSV 内容（无需代码块标记，无需开场白），必须在 CSV 顶部包含以 # 开头的元数据行，然后是列标题行和数据行：
+
+示例 CSV 结构：
+# collectionName: 华小华文核心词汇 (KSSR)
+# version: 1
+# description: 适用于马来西亚华文小学 (SJKC) 常用核心词汇与字词拼写练习。
+# group: 华文
+# language: zh
+# difficulty: 二年级
+# tags: 听写
+ID,Category,QuestionText,OptionA,OptionB,OptionC,OptionD,CorrectAnswer,Explanation,SourceReference,ImageFile
+chi-q001,校园生活,学校,学校,学效,学较,学郊,A,"学校（School）。意思：学生求学读书的场所。例句：我们在学校里认真学习。（We study hard at school.）","华小二年级 华文课本 第一单元",
+chi-q002,校园生活,操场,燥场,操场,澡场,躁场,B,"操场（Field/Playground）。意思：供体育锻炼或集会的场地。例句：同学们在操场上踢足球。（Students are playing football on the field.）","华小一年级 华文课本 第三单元",`;
+      }
+    } else {
+      if (targetLang === 'bm') {
+        return `Please generate a Bahasa Melayu primary school KSSR spelling and vocabulary collection (Kosa Kata & Ejaan Bahasa Melayu) in valid JSON format based on the text / topic / document provided.
+
+Strictly output ONLY a single raw JSON object (no markdown formatting, no code block markers, no intro text) following this exact schema:
 
 {
   "collectionName": "Kosa Kata Bahasa Melayu (KSSR)",
   "version": 1,
   "description": "Latihan ejaan dan kosa kata Bahasa Melayu Sekolah Rendah (SK & SJKC) selaras dengan KSSR.",
   "group": "Malay",
+  "language": "bm",
   "difficulty": "Tahun 2",
-  "enablePronunciation": true,
-  "pronunciationLanguage": "ms-MY",
   "tags": [
-    "kosa-kata",
     "ejaan",
-    "primary",
-    "malay"
   ],
   "questions": [
     {
       "id": "ms-q001",
       "category": "Sekolah & Rumah",
       "questionText": "perpustakaan",
+      "statements": {},
       "optionA": "prepustakaan",
       "optionB": "perpustakan",
       "optionC": "perpustakaan",
@@ -82,43 +128,36 @@ Strictly output ONLY a single raw JSON object (no markdown formatting, no code b
       "explanation": "图书馆（Library / Perpustakaan）。Maksud: Tempat membaca dan meminjam buku. 例句：Murid-murid membaca buku di perpustakaan.（同学们在图书馆看书。）",
       "sourceReference": "Buku Teks BM Tahun 3, Unit 4",
       "imageFile": ""
+    },
+    {
+      "id": "ms-q002",
+      "category": "Sekolah & Rumah",
+      "questionText": "sekolah",
+      "statements": {},
+      "optionA": "sekolah",
+      "optionB": "sekola",
+      "optionC": "sekolat",
+      "optionD": "syekolah",
+      "correctAnswer": "A",
+      "explanation": "学校（School / Sekolah）。Maksud: Tempat untuk belajar. 例句：Saya pergi ke sekolah setiap hari.（我每天去上学。）",
+      "sourceReference": "Buku Teks BM Tahun 1, Unit 2",
+      "imageFile": ""
     }
   ]
-}
+}`;
+      } else if (targetLang === 'eng') {
+        return `Please generate a Primary School English (KSSR) spelling and vocabulary collection in valid JSON format based on the text / topic / document provided.
 
---- CSV FORMAT SCHEMA ---
-Strictly output ONLY a raw CSV block (no intro text, no conversational text, no markdown formatting). Include the collection metadata rows first, followed by an empty line, then the question headers and rows:
-
-CollectionName,Kosa Kata Bahasa Melayu (KSSR)
-Description,Latihan ejaan dan kosa kata Bahasa Melayu Sekolah Rendah (SK & SJKC) selaras dengan KSSR.
-Group,Malay
-Difficulty,Tahun 2
-EnablePronunciation,true
-PronunciationLanguage,ms-MY
-Tags,"kosa-kata, ejaan, primary, malay"
-
-ID,Category,QuestionText,OptionA,OptionB,OptionC,OptionD,CorrectAnswer,Explanation,SourceReference,ImageFile
-ms-q001,Sekolah & Rumah,perpustakaan,prepustakaan,perpustakan,perpustakaan,perpustakkaan,C,"图书馆（Library / Perpustakaan）。Maksud: Tempat membaca dan meminjam buku. 例句：Murid-murid membaca buku di perpustakaan.（同学们在图书馆看书。）","Buku Teks BM Tahun 3, Unit 4",`;
-    } else if (targetLang === 'eng') {
-      return `Please generate a Primary School English (KSSR) spelling and vocabulary collection based on the text / topic / document provided. 
-
-You can output the result in EITHER JSON OR CSV format. Strictly follow the exact schemas below:
-
---- JSON FORMAT SCHEMA ---
-Strictly output ONLY a single raw JSON object (no markdown formatting, no code block markers) following this exact schema:
+Strictly output ONLY a single raw JSON object (no markdown formatting, no code block markers, no intro text) following this exact schema:
 
 {
   "collectionName": "Primary School English Vocabulary (KSSR)",
   "version": 1,
   "description": "Standard Year 1-6 English spelling vocabulary and common terms for primary school (KSSR).",
   "group": "English",
+  "language": "en",
   "difficulty": "Year 2",
-  "enablePronunciation": true,
-  "pronunciationLanguage": "en-US",
   "tags": [
-    "vocabulary",
-    "spelling",
-    "primary",
     "english"
   ],
   "questions": [
@@ -126,6 +165,7 @@ Strictly output ONLY a single raw JSON object (no markdown formatting, no code b
       "id": "eng-q001",
       "category": "Animals",
       "questionText": "Butterfly",
+      "statements": {},
       "optionA": "Butterflee",
       "optionB": "Butterfly",
       "optionC": "Butterflai",
@@ -134,50 +174,44 @@ Strictly output ONLY a single raw JSON object (no markdown formatting, no code b
       "explanation": "蝴蝶（Butterfly）。例句：The butterfly has colourful wings.（蝴蝶有绚丽彩色的翅膀。）",
       "sourceReference": "English Year 2 Textbook, Unit 5",
       "imageFile": ""
+    },
+    {
+      "id": "eng-q002",
+      "category": "School Life",
+      "questionText": "Library",
+      "statements": {},
+      "optionA": "Libary",
+      "optionB": "Librari",
+      "optionC": "Library",
+      "optionD": "Lybrary",
+      "correctAnswer": "C",
+      "explanation": "图书馆（Library）。例句：We read books in the library.（我们在图书馆里看书。）",
+      "sourceReference": "English Year 3 Textbook, Unit 1",
+      "imageFile": ""
     }
   ]
-}
+}`;
+      } else {
+        return `请根据提供的教学内容或词汇表，生成符合马来西亚华小华文 (SJKC KSSR) 标准的汉字词汇与拼写 JSON 题库。
 
---- CSV FORMAT SCHEMA ---
-Strictly output ONLY a raw CSV block (no intro text, no conversational text, no markdown formatting). Include the collection metadata rows first, followed by an empty line, then the question headers and rows:
-
-CollectionName,Primary School English Vocabulary (KSSR)
-Description,Standard Year 1-6 English spelling vocabulary and common terms for primary school (KSSR).
-Group,English
-Difficulty,Year 2
-EnablePronunciation,true
-PronunciationLanguage,en-US
-Tags,"vocabulary, spelling, primary, english"
-
-ID,Category,QuestionText,OptionA,OptionB,OptionC,OptionD,CorrectAnswer,Explanation,SourceReference,ImageFile
-eng-q001,Animals,Butterfly,Butterflee,Butterfly,Butterflai,Butterflie,B,"蝴蝶（Butterfly）。例句：The butterfly has colourful wings.（蝴蝶有绚丽彩色的翅膀。）","English Year 2 Textbook, Unit 5",`;
-    } else {
-      return `请根据提供的教学内容或词汇表，生成符合马来西亚华小华文 (SJKC KSSR) 标准的汉字词汇与拼写题库。
-
-您可以自由选择输出 JSON 或 CSV 格式。请严格遵循以下任一格式：
-
---- JSON 格式说明 ---
-务必严格仅输出单个 JSON 对象（无需 Markdown 格式，无需代码块标记），严格遵循以下结构：
+务必严格仅输出单个 JSON 对象（无需 Markdown 格式，无需代码块标记，无需开场白），严格遵循以下格式：
 
 {
   "collectionName": "华小华文核心词汇 (KSSR)",
   "version": 1,
   "description": "适用于马来西亚华文小学 (SJKC) 常用核心词汇与字词拼写练习。",
   "group": "华文",
+  "language": "zh",
   "difficulty": "二年级",
-  "enablePronunciation": true,
-  "pronunciationLanguage": "zh-CN",
   "tags": [
-    "vocabulary",
-    "pinyin",
-    "primary",
-    "chinese"
+    "听写",
   ],
   "questions": [
     {
       "id": "chi-q001",
       "category": "校园生活",
       "questionText": "学校",
+      "statements": {},
       "optionA": "学校",
       "optionB": "学效",
       "optionC": "学较",
@@ -186,27 +220,28 @@ eng-q001,Animals,Butterfly,Butterflee,Butterfly,Butterflai,Butterflie,B,"蝴蝶�
       "explanation": "学校（School）。意思：学生求学读书的场所。例句：我们在学校里认真学习。（We study hard at school.）",
       "sourceReference": "华小二年级 华文课本 第一单元",
       "imageFile": ""
+    },
+    {
+      "id": "chi-q002",
+      "category": "校园生活",
+      "questionText": "操场",
+      "statements": {},
+      "optionA": "燥场",
+      "optionB": "操场",
+      "optionC": "澡场",
+      "optionD": "躁场",
+      "correctAnswer": "B",
+      "explanation": "操场（Field/Playground）。意思：供体育锻炼或集会的场地。例句：同学们在操场上踢足球。（Students are playing football on the field.）",
+      "sourceReference": "华小一年级 华文课本 第三单元",
+      "imageFile": ""
     }
   ]
-}
-
---- CSV 格式说明 ---
-务必严格仅输出单个 CSV 内容（无需代码块标记，无需开场白）。请在文件顶部输出元数据信息，空一行后，再输出题目表头和内容：
-
-CollectionName,华小华文核心词汇 (KSSR)
-Description,适用于马来西亚华文小学 (SJKC) 常用核心词汇与字词拼写练习。
-Group,华文
-Difficulty,二年级
-EnablePronunciation,true
-PronunciationLanguage,zh-CN
-Tags,"vocabulary, pinyin, primary, chinese"
-
-ID,Category,QuestionText,OptionA,OptionB,OptionC,OptionD,CorrectAnswer,Explanation,SourceReference,ImageFile
-chi-q001,校园生活,学校,学校,学效,学较,学郊,A,"学校（School）。意思：学生求学读书的场所。例句：我们在学校里认真学习。（We study hard at school.）","华小二年级 华文课本 第一单元",`;
+}`;
+      }
     }
   };
 
-  const aiPromptText = getPromptText(selectedTargetLang);
+  const aiPromptText = getPromptText(selectedTargetLang, promptFormat);
 
   const handleCopyPrompt = () => {
     navigator.clipboard.writeText(aiPromptText);
@@ -320,8 +355,6 @@ chi-q001,校园生活,学校,学校,学效,学较,学郊,A,"学校（School）�
         language: report.collectionLanguage || updatedCollections[existingIndex].language || 'en',
         difficulty: report.collectionDifficulty || updatedCollections[existingIndex].difficulty || 'Master',
         tags: report.collectionTags || updatedCollections[existingIndex].tags || [],
-        enablePronunciation: report.enablePronunciation ?? updatedCollections[existingIndex].enablePronunciation,
-        pronunciationLanguage: report.pronunciationLanguage || updatedCollections[existingIndex].pronunciationLanguage,
         updatedAt: new Date().toISOString(),
         questionCount: report.extractedQuestions.length,
         questions: report.extractedQuestions,
@@ -338,8 +371,6 @@ chi-q001,校园生活,学校,学校,学效,学较,学郊,A,"学校（School）�
         difficulty: report.collectionDifficulty || 'Master',
         version: 1,
         tags: report.collectionTags || [],
-        enablePronunciation: report.enablePronunciation,
-        pronunciationLanguage: report.pronunciationLanguage,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         questionCount: report.extractedQuestions.length,
@@ -591,6 +622,30 @@ chi-q001,校园生活,学校,学校,学效,学较,学郊,A,"学校（School）�
                 })}
               </div>
 
+              <div className="flex items-center gap-2 sm:ml-auto">
+                <span className="text-xs font-semibold text-[#7C776B] dark:text-[#A09886] mr-1 shrink-0">
+                  {lang === 'zh' ? '格式:' : lang === 'ms' ? 'Format:' : 'Format:'}
+                </span>
+                {[
+                  { id: 'json', label: 'JSON' },
+                  { id: 'csv', label: 'CSV' },
+                ].map((item) => {
+                  const isActive = promptFormat === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => setPromptFormat(item.id as 'json' | 'csv')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
+                        isActive
+                          ? 'bg-[#5A6D5B] text-white shadow-sm'
+                          : 'bg-[#F5F2EA] dark:bg-[#2D322D] text-[#6B6559] dark:text-[#A09886] hover:bg-[#EAE5D8] dark:hover:bg-[#353B35]'
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <div className="relative">
@@ -604,8 +659,8 @@ chi-q001,校园生活,学校,学校,学效,学较,学郊,A,"学校（School）�
               <span>
                 <strong>{lang === 'zh' ? '使用说明：' : 'Instruction:'}</strong>{' '}
                 {lang === 'zh'
-                  ? `复制上方提示词，附带您的学习资料或 PDF 文件发送给 ChatGPT、Gemini 或 Claude 即可生成标准 JSON 或 CSV 题库。`
-                  : `Copy the prompt above, attach your study files/PDFs, and paste into ChatGPT or Gemini to receive a ready-to-import JSON or CSV package.`}
+                  ? `复制上方提示词，附带您的学习资料或 PDF 文件发送给 ChatGPT、Gemini 或 Claude 即可生成标准 ${promptFormat.toUpperCase()} 题库。`
+                  : `Copy the prompt above, attach your study files/PDFs, and paste into ChatGPT or Gemini to receive a ready-to-import ${promptFormat.toUpperCase()} package.`}
               </span>
             </div>
           </div>

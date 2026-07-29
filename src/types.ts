@@ -53,8 +53,6 @@ export interface KnowledgeCollection {
   updatedAt: string;
   questionCount: number;
   categories: string[];
-  enablePronunciation?: boolean;
-  pronunciationLanguage?: string;
   questions: Question[];
 }
 
@@ -160,8 +158,6 @@ export interface ValidationReport {
   collectionGroup?: string;
   collectionLanguage?: LanguageCode;
   collectionTags?: string[];
-  enablePronunciation?: boolean;
-  pronunciationLanguage?: string;
 }
 
 export interface GeneratedLicenseRecord {

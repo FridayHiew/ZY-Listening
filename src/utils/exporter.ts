@@ -26,8 +26,6 @@ function formatCollectionForExport(collection: KnowledgeCollection) {
     group: collection.group || 'General',
     language: collection.language || 'en',
     difficulty: collection.difficulty || 'Year 1',
-    enablePronunciation: collection.enablePronunciation,
-    pronunciationLanguage: collection.pronunciationLanguage,
     tags: collection.tags || [],
     questions: collection.questions.map((q) => {
       const idx = q.correctIndex >= 0 && q.correctIndex <= 3 ? q.correctIndex : 0;
@@ -100,8 +98,6 @@ export function downloadSampleJSONTemplate() {
     description: 'Contoh templat ejaan dan kosa kata Bahasa Melayu Sekolah Rendah KSSR.',
     group: 'Malay',
     difficulty: 'Tahun 1',
-    enablePronunciation: true,
-    pronunciationLanguage: 'ms-MY',
     tags: [
       'kosa-kata',
       'ejaan',
@@ -133,25 +129,6 @@ export function downloadSampleJSONTemplate() {
  * Export collection as CSV
  */
 export function exportCollectionAsCSV(collection: KnowledgeCollection) {
-  const escapeCSVField = (val: string) => {
-    if (val === undefined || val === null) return '';
-    const str = val.toString();
-    if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
-      return `"${str.replace(/"/g, '""')}"`;
-    }
-    return str;
-  };
-
-  const metadataRows = [
-    ['CollectionName', collection.name],
-    ['Description', collection.description || ''],
-    ['Group', collection.group || 'General'],
-    ['Difficulty', collection.difficulty || 'Year 1'],
-    ['EnablePronunciation', collection.enablePronunciation ? 'true' : 'false'],
-    ['PronunciationLanguage', collection.pronunciationLanguage || ''],
-    ['Tags', (collection.tags || []).join(', ')]
-  ];
-
   const headers = [
     'ID',
     'Category',
@@ -165,6 +142,15 @@ export function exportCollectionAsCSV(collection: KnowledgeCollection) {
     'SourceReference',
     'ImageFile'
   ];
+
+  const escapeCSVField = (val: string) => {
+    if (val === undefined || val === null) return '';
+    const str = val.toString();
+    if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
 
   const rows = collection.questions.map((q) => {
     const idx = q.correctIndex >= 0 && q.correctIndex <= 3 ? q.correctIndex : 0;
@@ -184,9 +170,18 @@ export function exportCollectionAsCSV(collection: KnowledgeCollection) {
     ];
   });
 
+  const metaComments = [
+    `# collectionName: ${collection.name}`,
+    `# version: ${collection.version || 1}`,
+    `# description: ${collection.description || ''}`,
+    `# group: ${collection.group || 'General'}`,
+    `# language: ${collection.language || 'en'}`,
+    `# difficulty: ${collection.difficulty || 'Primary'}`,
+    `# tags: ${(collection.tags || []).join(', ')}`
+  ];
+
   const csvContent = [
-    ...metadataRows.map(row => row.map(escapeCSVField).join(',')),
-    '', // Empty line to separate metadata from headers
+    ...metaComments,
     headers.map(escapeCSVField).join(','),
     ...rows.map(row => row.map(escapeCSVField).join(','))
   ].join('\n');
@@ -200,25 +195,6 @@ export function exportCollectionAsCSV(collection: KnowledgeCollection) {
  * Download sample CSV template matching system schema
  */
 export function downloadSampleCSVTemplate() {
-  const escapeCSVField = (val: string) => {
-    if (val === undefined || val === null) return '';
-    const str = val.toString();
-    if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
-      return `"${str.replace(/"/g, '""')}"`;
-    }
-    return str;
-  };
-
-  const metadataRows = [
-    ['CollectionName', 'Sample Collection'],
-    ['Description', 'Contoh templat ejaan dan kosa kata Bahasa Melayu Sekolah Rendah KSSR.'],
-    ['Group', 'Malay'],
-    ['Difficulty', 'Tahun 1'],
-    ['EnablePronunciation', 'true'],
-    ['PronunciationLanguage', 'ms-MY'],
-    ['Tags', 'kosa-kata, ejaan']
-  ];
-
   const headers = [
     'ID',
     'Category',
@@ -246,9 +222,27 @@ export function downloadSampleCSVTemplate() {
     ''
   ];
 
+  const escapeCSVField = (val: string) => {
+    if (val === undefined || val === null) return '';
+    const str = val.toString();
+    if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+
+  const metaComments = [
+    `# collectionName: Kosa Kata Bahasa Melayu (KSSR Sample)`,
+    `# version: 1`,
+    `# description: Contoh templat ejaan dan kosa kata Bahasa Melayu Sekolah Rendah KSSR.`,
+    `# group: Malay`,
+    `# language: bm`,
+    `# difficulty: Tahun 1`,
+    `# tags: kosa-kata, ejaan, primary`
+  ];
+
   const csvContent = [
-    ...metadataRows.map(row => row.map(escapeCSVField).join(',')),
-    '',
+    ...metaComments,
     headers.map(escapeCSVField).join(','),
     sampleRow.map(escapeCSVField).join(',')
   ].join('\n');
@@ -269,8 +263,6 @@ export async function downloadSampleZIPTemplate() {
     description: 'Sample ZIP package containing vocabulary JSON and images.',
     group: 'General',
     difficulty: 'Easy',
-    enablePronunciation: true,
-    pronunciationLanguage: 'en-US',
     tags: ['zip', 'sample'],
     questions: [
       {
