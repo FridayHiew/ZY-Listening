@@ -1,4 +1,4 @@
-const CACHE_NAME = 'yiga-pwa-v3';
+const CACHE_NAME = 'yiga-pwa-v4';
 
 // Core assets to cache immediately during service worker install
 const CORE_ASSETS = [
