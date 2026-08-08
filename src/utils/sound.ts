@@ -146,64 +146,324 @@ class SoundEffects {
       const targetLower = targetLang.toLowerCase();
       const langPrefix = targetLower.split('-')[0];
 
-      // Priority 1: Match target locale AND natural/enhanced/siri/google/neural voice keywords
-      let matchedVoice = voices.find((v) => {
-        const vLang = v.lang.replace('_', '-').toLowerCase();
-        const vName = v.name.toLowerCase();
-        const isLangMatch = vLang === targetLower || vLang.startsWith(langPrefix);
-        const isPremium = vName.includes('natural') || vName.includes('siri') || vName.includes('enhanced') || vName.includes('premium') || vName.includes('online') || vName.includes('google') || vName.includes('neural') || vName.includes('wave');
-        return isLangMatch && isPremium;
-      });
+      // Check if user explicitly selected a preferred device voice for this language
+      let preferredVoiceName: string | undefined;
+      try {
+        const state = loadAppState();
+        if (langPrefix === 'en') preferredVoiceName = state.settings?.preferredVoiceEn;
+        else if (langPrefix === 'zh') preferredVoiceName = state.settings?.preferredVoiceZh;
+        else if (langPrefix === 'ms') preferredVoiceName = state.settings?.preferredVoiceMs;
+      } catch {
+        // ignore
+      }
 
-      // Priority 2: Exact or prefix language code match
-      if (!matchedVoice) {
-        matchedVoice = voices.find((v) => {
+      let explicitVoice: SpeechSynthesisVoice | undefined;
+      if (preferredVoiceName) {
+        explicitVoice = voices.find((v) => v.name === preferredVoiceName || v.voiceURI === preferredVoiceName);
+      }
+
+      if (explicitVoice) {
+        utterance.voice = explicitVoice;
+        utterance.lang = explicitVoice.lang;
+      } else {
+        // Score voices to strictly prefer natural, neural, enhanced, and human voices
+        // while avoiding legacy robotic desktop voices like Microsoft David / Zira / Mark
+        const scoredVoices = voices.map((v) => {
           const vLang = v.lang.replace('_', '-').toLowerCase();
-          return vLang === targetLower || vLang.startsWith(langPrefix);
-        });
-      }
+          const vName = v.name.toLowerCase();
+          let score = 0;
 
-      // Priority 3: Fallback per language for Mac/iOS/Android/Windows
-      if (!matchedVoice && targetLang === 'en-GB') {
-        matchedVoice = voices.find((v) => {
-          const l = v.lang.toLowerCase();
-          const n = v.name.toLowerCase();
-          return l.includes('en') || n.includes('uk') || n.includes('samantha') || n.includes('daniel') || n.includes('karen') || n.includes('serena');
-        });
-      }
+          // Language matching
+          if (vLang === targetLower) score += 60;
+          else if (vLang.startsWith(langPrefix)) score += 40;
+          else if (targetLang === 'ms-MY' && (vLang.startsWith('id') || vName.includes('indonesian'))) score += 15;
+          else score -= 1000; // Wrong language
 
-      if (!matchedVoice && targetLang === 'ms-MY') {
-        // Try Malay voices, or Indonesian (id-ID) as phonetic fallback (far superior to English voice)
-        matchedVoice = voices.find((v) => {
-          const l = v.lang.replace('_', '-').toLowerCase();
-          const n = v.name.toLowerCase();
-          return l.startsWith('ms') || n.includes('malay') || l.startsWith('id') || n.includes('indonesian');
-        });
-      }
+          // Neural / Natural / Premium voice detection
+          if (vName.includes('online (natural)') || vName.includes('natural') || vName.includes('neural')) score += 100;
+          if (vName.includes('enhanced') || vName.includes('premium') || vName.includes('siri')) score += 80;
+          if (vName.includes('google')) score += 50;
+          if (v.localService === false) score += 20;
 
-      if (!matchedVoice && targetLang === 'zh-CN') {
-        matchedVoice = voices.find((v) => {
-          const l = v.lang.replace('_', '-').toLowerCase();
-          const n = v.name.toLowerCase();
-          return l.startsWith('zh') || n.includes('chinese') || n.includes('mandarin') || n.includes('tingting') || n.includes('sinji') || n.includes('xiaoxiao') || n.includes('meijia') || n.includes('huihui') || n.includes('yaoyao');
-        });
-      }
+          // High-quality voice names
+          if (
+            vName.includes('ava') ||
+            vName.includes('jenny') ||
+            vName.includes('aria') ||
+            vName.includes('samantha') ||
+            vName.includes('serena') ||
+            vName.includes('daniel') ||
+            vName.includes('karen') ||
+            vName.includes('xiaoxiao') ||
+            vName.includes('yunxi') ||
+            vName.includes('xiaoyi') ||
+            vName.includes('tingting') ||
+            vName.includes('yasmin') ||
+            vName.includes('osman')
+          ) {
+            score += 30;
+          }
 
-      if (matchedVoice) {
-        utterance.voice = matchedVoice;
-        utterance.lang = matchedVoice.lang;
+          // Heavy penalty for legacy robotic SAPI5 desktop voices
+          if (vName.includes('david') || vName.includes('zira') || vName.includes('mark') || vName.includes('desktop') || vName.includes('speech')) {
+            score -= 150;
+          }
+
+          return { voice: v, score };
+        });
+
+        scoredVoices.sort((a, b) => b.score - a.score);
+
+        if (scoredVoices.length > 0 && scoredVoices[0].score > -500) {
+          utterance.voice = scoredVoices[0].voice;
+          utterance.lang = scoredVoices[0].voice.lang;
+        }
       }
     }
 
     window.speechSynthesis.speak(utterance);
   }
 
+  private isSupertonicAvailable: boolean | null = null;
+  private lastSupertonicCheckTime = 0;
+
   /**
-   * Speak a vocabulary word using Hybrid Human Voice Engine
-   * 1. Try Free Dictionary API for authentic English MP3 voice (when online)
-   * 2. Try Google Translate Native TTS endpoint for Malay (ms) and Chinese (zh-CN) when online
-   * 3. Fallback to optimized browser WebSpeech API (iOS Siri, Mac Safari, Chrome, Android, Edge)
-   * Fully race-condition safe using token checks so multiple triggers never overlap.
+   * Supertonic 3 local on-device engine
+   * Runs locally on http://127.0.0.1:7788
+   */
+  private async speakSupertonic3(cleanText: string, langCode: 'en' | 'zh', speed: number, token: number): Promise<boolean> {
+    const now = Date.now();
+    // If we checked Supertonic within the last 30 seconds and it failed, skip to avoid latency
+    if (this.isSupertonicAvailable === false && now - this.lastSupertonicCheckTime < 30000) {
+      return false;
+    }
+
+    return new Promise(async (resolve) => {
+      try {
+        const controller = new AbortController();
+        const connectionTimer = setTimeout(() => controller.abort(), 350); // Fast 350ms connection check
+
+        const response = await fetch('http://127.0.0.1:7788/v1/audio/speech', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'supertonic-3',
+            input: cleanText,
+            voice: langCode === 'zh' ? 'F1' : 'Sarah',
+            lang: langCode,
+            speed: speed,
+          }),
+          signal: controller.signal,
+        });
+
+        clearTimeout(connectionTimer);
+        this.isSupertonicAvailable = true;
+        this.lastSupertonicCheckTime = now;
+
+        if (this.currentSpeechToken !== token) {
+          resolve(false);
+          return;
+        }
+
+        if (response.ok) {
+          const audioBlob = await response.blob();
+          if (this.currentSpeechToken !== token) {
+            resolve(false);
+            return;
+          }
+          const success = await this.playAudioBlobChunks([audioBlob], token, speed);
+          resolve(success);
+        } else {
+          resolve(false);
+        }
+      } catch {
+        this.isSupertonicAvailable = false;
+        this.lastSupertonicCheckTime = now;
+        resolve(false);
+      }
+    });
+  }
+
+  /**
+   * Microsoft Edge Neural TTS via WebSocket
+   * Voice voices:
+   *  - Malay (ms): ms-MY-YasminNeural
+   *  - Chinese (zh): zh-CN-XiaoxiaoNeural
+   *  - English (en): en-GB-SoniaNeural
+   */
+  private speakEdgeNeuralTTS(cleanText: string, langCode: 'en' | 'zh' | 'ms', speed: number, token: number): Promise<boolean> {
+    return new Promise((resolve) => {
+      if (!navigator.onLine) {
+        resolve(false);
+        return;
+      }
+
+      let voiceName = 'en-US-AvaNeural';
+      let lang = 'en-US';
+      if (langCode === 'zh') {
+        voiceName = 'zh-CN-YunxiNeural';
+        lang = 'zh-CN';
+      } else if (langCode === 'ms') {
+        voiceName = 'ms-MY-YasminNeural';
+        lang = 'ms-MY';
+      }
+
+      const percent = Math.round((speed - 1.0) * 100);
+      const rateStr = `${percent >= 0 ? '+' : ''}${percent}%`;
+      const escapedText = cleanText
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;');
+
+      const requestId = Math.random().toString(36).substring(2, 15);
+      const wsUrl = `wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=6A5AA1D4EA634081836B92058988D4E1`;
+
+      let ws: WebSocket | null = null;
+      let resolved = false;
+      const audioChunks: Blob[] = [];
+
+      const cleanup = () => {
+        if (ws) {
+          try {
+            ws.close();
+          } catch {
+            // ignore
+          }
+          ws = null;
+        }
+      };
+
+      // Optimised timeout: 1500ms ensures that if the WebSocket is slow to connect or process, 
+      // we fail fast and fall back to native speech, preventing a hanging 10s wait.
+      const timer = setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          cleanup();
+          resolve(false);
+        }
+      }, 1500);
+
+      try {
+        ws = new WebSocket(wsUrl);
+        ws.binaryType = 'arraybuffer';
+
+        ws.onopen = () => {
+          if (this.currentSpeechToken !== token || resolved) {
+            cleanup();
+            return;
+          }
+
+          const configMsg = `Path: speech.config\r\nContent-Type: application/json; charset=utf-8\r\n\r\n{"context":{"synthesis":{"audio":{"metadataversion":"2020-05-01","version":"1.0.0","audioFormat":"audio-24khz-96kbitrate-mono-mp3","streamFormat":"audio-24khz-96kbitrate-mono-mp3"}}}}`;
+          ws?.send(configMsg);
+
+          const ssmlMsg = `Path: ssml\r\nContent-Type: application/ssml+xml\r\nX-RequestId: ${requestId}\r\n\r\n<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='${lang}'><voice name='${voiceName}'><prosody pitch='+0Hz' rate='${rateStr}' volume='+0%'>${escapedText}</prosody></voice></speak>`;
+          ws?.send(ssmlMsg);
+        };
+
+        ws.onmessage = (e) => {
+          if (this.currentSpeechToken !== token || resolved) {
+            cleanup();
+            return;
+          }
+
+          if (typeof e.data === 'string') {
+            if (e.data.includes('Path: turn.end')) {
+              resolved = true;
+              clearTimeout(timer);
+              cleanup();
+              if (audioChunks.length > 0) {
+                this.playAudioBlobChunks(audioChunks, token).then(resolve);
+              } else {
+                resolve(false);
+              }
+            }
+          } else if (e.data instanceof ArrayBuffer) {
+            const view = new DataView(e.data);
+            if (e.data.byteLength >= 2) {
+              const headerLength = view.getUint16(0);
+              if (e.data.byteLength >= 2 + headerLength) {
+                const headerStr = new TextDecoder().decode(e.data.slice(2, 2 + headerLength));
+                if (headerStr.includes('Path: audio')) {
+                  const audioData = e.data.slice(2 + headerLength);
+                  if (audioData.byteLength > 0) {
+                    audioChunks.push(new Blob([audioData], { type: 'audio/mp3' }));
+                  }
+                }
+              }
+            }
+          }
+        };
+
+        ws.onerror = () => {
+          if (!resolved) {
+            resolved = true;
+            clearTimeout(timer);
+            cleanup();
+            resolve(false);
+          }
+        };
+
+        ws.onclose = () => {
+          if (!resolved) {
+            resolved = true;
+            clearTimeout(timer);
+            if (audioChunks.length > 0 && this.currentSpeechToken === token) {
+              this.playAudioBlobChunks(audioChunks, token, speed).then(resolve);
+            } else {
+              resolve(false);
+            }
+          }
+        };
+      } catch {
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(timer);
+          cleanup();
+          resolve(false);
+        }
+      }
+    });
+  }
+
+  private async playAudioBlobChunks(chunks: Blob[], token: number, speed: number = 1.0): Promise<boolean> {
+    if (this.currentSpeechToken !== token) return false;
+    try {
+      const audioBlob = new Blob(chunks, { type: 'audio/mp3' });
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+      this.currentAudio = audio;
+
+      if (speed && speed > 0) {
+        audio.playbackRate = speed;
+      }
+
+      return new Promise((resolve) => {
+        audio.onended = () => {
+          URL.revokeObjectURL(audioUrl);
+          if (this.currentAudio === audio) this.currentAudio = null;
+          resolve(true);
+        };
+        audio.onerror = () => {
+          URL.revokeObjectURL(audioUrl);
+          if (this.currentAudio === audio) this.currentAudio = null;
+          resolve(false);
+        };
+        audio.play().catch(() => resolve(false));
+      });
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Speak a vocabulary word using Microsoft Edge Neural TTS + High Quality Fallbacks
+   * 1. Primary: Microsoft Edge Neural TTS via direct WebSocket (ms-MY-YasminNeural, zh-CN-XiaoxiaoNeural, en-GB-SoniaNeural)
+   * 2. Fallback: Free Dictionary API MP3 for English
+   * 3. Fallback: Native Browser WebSpeech API with Microsoft/Neural voice auto-selection
    */
   async speak(text: string, langCode: 'en' | 'zh' | 'ms' = 'en', customSpeed?: number) {
     // Stop any active HTML audio or speech synthesis and increment token
@@ -234,100 +494,79 @@ class SoundEffects {
       targetLang = 'en-GB';
     }
 
-    // 1. Attempt Free Dictionary Audio MP3 for English words when online
-    if (langCode === 'en' && navigator.onLine && /^[a-zA-Z\s-]+$/.test(cleanText)) {
-      try {
-        const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(cleanText.toLowerCase())}`);
-        
-        // Token check: abort if a newer speak request came in during fetch
-        if (this.currentSpeechToken !== token) return;
-
-        if (res.ok) {
-          const data = await res.json();
-          let audioUrl = '';
-          if (Array.isArray(data) && data.length > 0) {
-            const phonetics = data[0].phonetics || [];
-            const withAudio = phonetics.find((p: any) => p.audio && p.audio.trim().length > 0);
-            if (withAudio) {
-              audioUrl = withAudio.audio;
-            }
-          }
-
-          if (audioUrl) {
-            if (this.currentSpeechToken !== token) return;
-
-            const audio = new Audio(audioUrl);
-            this.currentAudio = audio;
-            audio.playbackRate = effectiveSpeed;
-
-            try {
-              await audio.play();
-              return;
-            } catch {
-              // Fallback if audio.play() fails
-            }
-          }
-        }
-      } catch {
-        // Fallback
-      }
+    // Load setting to check if the user preferred native offline speech to bypass online delay
+    let voiceMode = 'online';
+    let useSupertonic3 = true;
+    try {
+      const state = loadAppState();
+      voiceMode = state.settings?.voiceMode ?? 'online';
+      useSupertonic3 = state.settings?.useSupertonic3 ?? true;
+    } catch {
+      // ignore
     }
 
-    // 2. Online Google Translate Native TTS endpoint for Chinese, Malay, and English
-    if (navigator.onLine) {
-      let ttsTl = 'en-GB';
-      if (langCode === 'zh') ttsTl = 'zh-CN';
-      else if (langCode === 'ms') ttsTl = 'ms';
+    // 0. Try local Supertonic 3 engine first if enabled for English or Chinese
+    if (useSupertonic3 && (langCode === 'en' || langCode === 'zh')) {
+      const supertonicSuccess = await this.speakSupertonic3(cleanText, langCode, effectiveSpeed, token);
+      if (supertonicSuccess || this.currentSpeechToken !== token) return;
+    }
 
-      const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(cleanText)}&tl=${ttsTl}&client=tw-ob`;
+    if (voiceMode === 'online' && navigator.onLine) {
+      // 1. Try Microsoft Edge Neural TTS via WebSocket
+      const edgeSuccess = await this.speakEdgeNeuralTTS(cleanText, langCode, effectiveSpeed, token);
+      if (edgeSuccess || this.currentSpeechToken !== token) return;
 
-      if (this.currentSpeechToken !== token) return;
+      // 2. Fallback: Free Dictionary Audio MP3 for single English words when online
+      if (langCode === 'en' && !cleanText.includes(' ') && cleanText.length < 30 && /^[a-zA-Z-]+$/.test(cleanText)) {
+        try {
+          // Add 400ms AbortController timeout to prevent the dictionary fetch hanging
+          const controller = new AbortController();
+          const fetchTimer = setTimeout(() => controller.abort(), 400);
 
-      const audio = new Audio(ttsUrl);
-      this.currentAudio = audio;
-      audio.playbackRate = effectiveSpeed;
+          const res = await fetch(
+            `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(cleanText.toLowerCase())}`,
+            { signal: controller.signal }
+          );
+          clearTimeout(fetchTimer);
+          
+          if (this.currentSpeechToken !== token) return;
 
-      let hasFallenBack = false;
-      const doFallback = () => {
-        if (hasFallenBack || this.currentSpeechToken !== token) return;
-        hasFallenBack = true;
-        this.speakWebSpeech(cleanText, targetLang, effectiveSpeed);
-      };
+          if (res.ok) {
+            const data = await res.json();
+            let audioUrl = '';
+            if (Array.isArray(data) && data.length > 0) {
+              const phonetics = data[0].phonetics || [];
+              const withAudio = phonetics.find((p: any) => p.audio && p.audio.trim().length > 0);
+              if (withAudio) {
+                audioUrl = withAudio.audio;
+              }
+            }
 
-      const timeoutId = setTimeout(() => {
-        if (audio.readyState === 0) {
-          try { audio.pause(); } catch {}
-          doFallback();
+            if (audioUrl) {
+              if (this.currentSpeechToken !== token) return;
+
+              const audio = new Audio(audioUrl);
+              this.currentAudio = audio;
+              audio.playbackRate = effectiveSpeed;
+
+              try {
+                await audio.play();
+                return;
+              } catch {
+                // Fallback if audio.play() fails
+              }
+            }
+          }
+        } catch {
+          // Fallback
         }
-      }, 2500);
-
-      audio.onerror = () => {
-        clearTimeout(timeoutId);
-        doFallback();
-      };
-
-      audio.onended = () => {
-        clearTimeout(timeoutId);
-        if (this.currentAudio === audio) {
-          this.currentAudio = null;
-        }
-      };
-
-      try {
-        await audio.play();
-        clearTimeout(timeoutId);
-        return;
-      } catch {
-        clearTimeout(timeoutId);
-        doFallback();
-        if (this.currentSpeechToken !== token) return;
       }
     }
 
     // Token check: abort before WebSpeech fallback
     if (this.currentSpeechToken !== token) return;
 
-    // 3. Offline / Fallback: Browser WebSpeech API with strict language matching
+    // 3. Fallback: Browser WebSpeech API with Microsoft/Neural voice prioritization
     this.speakWebSpeech(cleanText, targetLang, effectiveSpeed);
   }
 

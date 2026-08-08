@@ -10,6 +10,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   theme: 'light',
   fontSize: 'medium',
   speechSpeed: 1.0,
+  voiceMode: 'online',
+  useSupertonic3: true,
   securityEnabled: false,
   pinCode: undefined,
   dailyStudyReminder: true,

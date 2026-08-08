@@ -113,13 +113,18 @@ export type LanguageCode = 'en' | 'zh' | 'ms';
 export type AppTheme = 'light' | 'dark' | 'system';
 export type FontSize = 'small' | 'medium' | 'large';
 
-export type SpeechSpeed = 1.0 | 0.8 | 0.6;
+export type SpeechSpeed = 1.25 | 1.0 | 0.8 | 0.75 | 0.6 | 0.5 | number;
 
 export interface AppSettings {
   language: LanguageCode;
   theme: AppTheme;
   fontSize: FontSize;
   speechSpeed?: SpeechSpeed;
+  voiceMode?: 'online' | 'offline';
+  useSupertonic3?: boolean;
+  preferredVoiceEn?: string;
+  preferredVoiceZh?: string;
+  preferredVoiceMs?: string;
   securityEnabled: boolean;
   pinCode?: string; // 4-digit PIN code if enabled
   dailyStudyReminder: boolean;
