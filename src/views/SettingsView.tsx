@@ -274,40 +274,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
         </div>
 
-        {/* Supertonic 3 Engine Toggle */}
-        <div className="p-3.5 bg-[#F5F2EA] dark:bg-[#2D322D] rounded-xl border border-[#E8E2D2] dark:border-[#353B35] space-y-2.5">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex-1">
-              <label className="text-xs font-bold text-[#2D2A26] dark:text-[#EAE7DF] block">
-                {lang === 'zh' ? 'Supertonic 3 本地引擎:' : lang === 'ms' ? 'Enjin Supertonic 3 Tempatan:' : 'Supertonic 3 Local Engine:'}
-              </label>
-              <span className="text-[10px] text-[#7C776B] dark:text-[#A09886] block mt-0.5 leading-normal">
-                {lang === 'zh' ? '首选中英发音采用本地 127.0.0.1:7788 运行的 Supertonic 3 引擎，0 延迟且高音质。未运行则自动平滑降级。' : lang === 'ms' ? 'Menggunakan enjin Supertonic 3 tempatan (127.0.0.1:7788) untuk sebutan Inggeris & Cina. Turun taraf automatik jika tiada.' : 'Synthesizes English & Chinese using the local Supertonic 3 server (127.0.0.1:7788) for zero latency. Falls back seamlessly if offline.'}
-              </span>
-            </div>
-            <button
-              onClick={() => {
-                const newValue = !(settings.useSupertonic3 ?? true);
-                onUpdateSettings({ useSupertonic3: newValue });
-                if (newValue) {
-                  setTimeout(() => {
-                    quizSounds.speak(lang === 'zh' ? '学校' : 'Butterfly', lang === 'zh' ? 'zh' : 'en');
-                  }, 50);
-                }
-              }}
-              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                (settings.useSupertonic3 ?? true) ? 'bg-[#5A6D5B]' : 'bg-[#E8E2D2] dark:bg-[#353B35]'
-              }`}
-            >
-              <span
-                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
-                  (settings.useSupertonic3 ?? true) ? 'translate-x-5' : 'translate-x-0'
-                }`}
-              />
-            </button>
-          </div>
-        </div>
-
         {/* Speech Speed Selector (1.25x, 1.0x, 0.75x, 0.5x) */}
         <div className="p-3.5 bg-[#F5F2EA] dark:bg-[#2D322D] rounded-xl border border-[#E8E2D2] dark:border-[#353B35] space-y-2.5">
           <div className="flex items-center justify-between">
@@ -358,10 +324,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
               <label className="text-xs font-bold text-[#2D2A26] dark:text-[#EAE7DF] block">
-                {lang === 'zh' ? '设备离线发音包自定义 (支持选中 UK Voice 6 等手机声音):' : lang === 'ms' ? 'Pilih Suara Peranti Tempatan (Sistem):' : 'Select Preferred Installed Device Voice:'}
+                {lang === 'zh' ? '设备离线发音包自定义:' : lang === 'ms' ? 'Pilih Suara Peranti Tempatan:' : 'Select Preferred Installed Device Voice:'}
               </label>
               <span className="text-[10px] text-[#7C776B] dark:text-[#A09886] block mt-0.5">
-                {lang === 'zh' ? '若离线发音不自然，可在下方直接指定手机安装的具体声音（如 Siri UK、UK Voice 6 等）。' : lang === 'ms' ? 'Jika sebutan luar talian tidak semula jadi, pilih suara telefon yang dipasang (seperti UK Voice 6).' : 'Select specific installed phone voices (such as UK Voice 6, Siri UK, Google UK) for custom offline speech.'}
+                {lang === 'zh' ? '可在下方直接指定手机安装的具体声音。' : lang === 'ms' ? 'Pilih suara telefon yang dipasang di bawah.' : 'Select specific installed phone voices below.'}
               </span>
             </div>
 
